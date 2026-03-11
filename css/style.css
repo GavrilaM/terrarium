@@ -196,6 +196,37 @@ html, body {
     gap: var(--space-sm);
 }
 
+/* Active Event Banner */
+.active-event-banner {
+    position: fixed;
+    top: var(--topbar-height);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: var(--space-sm) var(--space-xl);
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-xl);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    z-index: 25;
+    pointer-events: none;
+    animation: eventBannerPulse 2s ease infinite;
+    white-space: nowrap;
+}
+
+.active-event-banner.event-bloom { color: var(--accent-green); border-color: rgba(105, 240, 174, 0.4); }
+.active-event-banner.event-toxic { color: var(--accent-red); border-color: rgba(255, 82, 82, 0.4); }
+.active-event-banner.event-mutation { color: var(--accent-purple); border-color: rgba(179, 136, 255, 0.4); }
+.active-event-banner.event-current { color: var(--accent-cyan); border-color: rgba(0, 229, 255, 0.4); }
+
+@keyframes eventBannerPulse {
+    0%, 100% { opacity: 0.9; }
+    50% { opacity: 1; box-shadow: 0 0 20px rgba(255, 255, 255, 0.08); }
+}
+
 .stat-chip {
     display: flex;
     flex-direction: column;

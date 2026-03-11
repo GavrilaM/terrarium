@@ -179,9 +179,27 @@ export class Renderer {
             ctx.arc(pos.x, pos.y - finalSize - 5, 2, 0, Math.PI * 2);
             ctx.fillStyle = `hsla(330, 80%, 70%, ${0.5 + glowPulse * 0.5})`;
             ctx.fill();
+        } else if (c.state === STATES.CRITICAL_HUNGER) {
+            // Flashing red warning
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y - finalSize - 5, 3, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(0, 90%, 60%, ${0.5 + glowPulse * 0.5})`;
+            ctx.fill();
+        } else if (c.state === STATES.HUNT) {
+            // Red crosshair
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y - finalSize - 5, 2, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(10, 90%, 55%, ${0.6 + glowPulse * 0.4})`;
+            ctx.fill();
+        } else if (c.state === STATES.DIGESTING) {
+            // Green dot (satisfied)
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y - finalSize - 5, 2, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(120, 70%, 55%, ${0.5 + glowPulse * 0.3})`;
+            ctx.fill();
         }
 
-        // --- Energy bar (only if selected or low energy) ---
+        // --- Energy bar (only if low energy) ---
         if (c.energy < CONFIG.CREATURE.INITIAL_ENERGY * 0.3) {
             const barW = finalSize * 2;
             const barH = 2;
@@ -195,6 +213,62 @@ export class Renderer {
             const energyHue = c.energy > 30 ? 120 : 0;
             ctx.fillStyle = `hsla(${energyHue}, 80%, 55%, 0.8)`;
             ctx.fillRect(barX, barY, fillW, barH);
+        }
+    }
+
+    /**
+     * Draw environmental hazard zones
+     */
+    drawHazards(hazards) {
+        const ctx = this.ctx;
+        for (const h of hazards) {
+            if (!h.alive) continue;
+            const fadeAlpha = Math.min(1, h.duration / (h.maxDuration * 0.2)); // fade near end
+
+            if (h.type === 'toxic') {
+                // Pulsing red/purple danger zone
+                const pulse = 1 + Math.sin(Date.now() * 0.005) * 0.1;
+                const r = h.radius * pulse;
+
+                const grad = ctx.createRadialGradient(h.pos.x, h.pos.y, 0, h.pos.x, h.pos.y, r);
+                grad.addColorStop(0, `rgba(255, 50, 50, ${0.12 * fadeAlpha})`);
+                grad.addColorStop(0.6, `rgba(180, 30, 80, ${0.06 * fadeAlpha})`);
+                grad.addColorStop(1, `rgba(100, 0, 60, 0)`);
+                ctx.beginPath();
+                ctx.arc(h.pos.x, h.pos.y, r, 0, Math.PI * 2);
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                // Border ring
+                ctx.beginPath();
+                ctx.arc(h.pos.x, h.pos.y, h.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(255, 50, 70, ${0.3 * fadeAlpha})`;
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+            } else if (h.type === 'current') {
+                // Flowing cyan arrows
+                const grad = ctx.createRadialGradient(h.pos.x, h.pos.y, 0, h.pos.x, h.pos.y, 120);
+                grad.addColorStop(0, `rgba(0, 180, 255, ${0.08 * fadeAlpha})`);
+                grad.addColorStop(1, `rgba(0, 120, 200, 0)`);
+                ctx.beginPath();
+                ctx.arc(h.pos.x, h.pos.y, 120, 0, Math.PI * 2);
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                // Direction indicator
+                const arrowLen = 25;
+                const ax = h.pos.x + h.direction.x * arrowLen;
+                const ay = h.pos.y + h.direction.y * arrowLen;
+                ctx.beginPath();
+                ctx.moveTo(h.pos.x, h.pos.y);
+                ctx.lineTo(ax, ay);
+                ctx.strokeStyle = `rgba(0, 229, 255, ${0.4 * fadeAlpha})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
         }
     }
 

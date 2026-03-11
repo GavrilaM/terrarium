@@ -160,6 +160,7 @@ class Terrarium {
             // --- RENDER ---
             this.renderer.clear();
             this.particles.draw(this.renderer.ctx);
+            this.renderer.drawHazards(this.ecosystem.hazards);
             this.renderer.drawFood(this.ecosystem.food);
             this.renderer.drawCreatures(this.ecosystem.creatures);
 

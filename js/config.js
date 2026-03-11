@@ -41,6 +41,27 @@ export const CONFIG = {
         WANDER_STRENGTH: 0.3,
         SEEK_STRENGTH: 1.5,
         FLEE_STRENGTH: 2.5,
+        // Fullness / Satiety
+        FULLNESS_MAX: 100,             // max stomach capacity
+        FULLNESS_INITIAL: 50,          // starting fullness
+        FULLNESS_DECAY: 0.025,         // hunger rate per frame
+        FULLNESS_EAT_THRESHOLD: 50,    // below this → seek food
+        FULLNESS_FULL_THRESHOLD: 85,   // above this → refuses to eat
+        FULLNESS_PLANT: 35,            // fullness gained from plant food
+        FULLNESS_PREY: 65,             // fullness gained from killing prey
+        DIGEST_COOLDOWN: 40,           // frames between eating
+    },
+
+    // Environmental Events
+    EVENTS: {
+        MIN_INTERVAL: 600,             // min frames between events
+        MAX_INTERVAL: 1800,            // max frames between events
+        BLOOM_FOOD_COUNT: 20,          // food spawned during bloom
+        TOXIC_DURATION: 300,           // frames toxic zone lasts
+        TOXIC_RADIUS: 80,             // toxic zone size
+        TOXIC_DAMAGE: 0.5,            // damage per frame in toxic zone
+        CURRENT_DURATION: 200,         // how long current lasts
+        CURRENT_STRENGTH: 0.8,        // push force
     },
 
     // Genetics
