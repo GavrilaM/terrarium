@@ -1,6 +1,6 @@
 // ============================================
 // TERRARIUM — UI Manager
-// Dashboard, controls, event log, eras, fullness
+// Dashboard, controls, HP/Energy/Fullness bars
 // ============================================
 
 import { CONFIG } from './config.js';
@@ -10,7 +10,6 @@ export class UIManager {
         this.ecosystem = ecosystem;
         this.selectedCreature = null;
 
-        // Cache DOM elements
         this.els = {
             populationCount: document.getElementById('population-count'),
             generationCount: document.getElementById('generation-count'),
@@ -29,6 +28,7 @@ export class UIManager {
             creatureSpecies: document.getElementById('creature-species'),
             creatureState: document.getElementById('creature-state'),
             creatureGen: document.getElementById('creature-gen'),
+            creatureHpBar: document.getElementById('creature-hp-bar'),
             creatureEnergyBar: document.getElementById('creature-energy-bar'),
             creatureFullnessBar: document.getElementById('creature-fullness-bar'),
             creatureDiet: document.getElementById('creature-diet'),
@@ -44,10 +44,7 @@ export class UIManager {
     }
 
     _setupListeners() {
-        document.getElementById('close-creature-info')?.addEventListener('click', () => {
-            this.deselectCreature();
-        });
-
+        document.getElementById('close-creature-info')?.addEventListener('click', () => this.deselectCreature());
         this.els.speedSlider?.addEventListener('input', (e) => {
             this.els.speedValue.textContent = parseFloat(e.target.value) + 'x';
         });
@@ -56,7 +53,6 @@ export class UIManager {
     update(fps) {
         const stats = this.ecosystem.getStats();
 
-        // Stats
         this.els.populationCount.textContent = stats.population;
         this.els.generationCount.textContent = stats.maxGeneration;
         this.els.speciesCount.textContent = stats.speciesCount;
@@ -72,7 +68,7 @@ export class UIManager {
             this.els.eraBadge?.classList.add('era-transition');
         }
 
-        // Active environmental event banner
+        // Active event
         if (this.els.activeEventBanner) {
             if (stats.activeEvent) {
                 this.els.activeEventBanner.textContent = stats.activeEvent.message;
@@ -85,7 +81,6 @@ export class UIManager {
 
         this._updateSpeciesList(stats.speciesList);
         this._updateEventLog();
-
         if (this.selectedCreature) this._updateCreatureInfo();
     }
 
@@ -115,15 +110,14 @@ export class UIManager {
     _updateEventLog() {
         const c = this.els.eventLog;
         if (!c) return;
-        const events = this.ecosystem.events;
-        if (events.length === this._lastEventCount) return;
-        this._lastEventCount = events.length;
+        if (this.ecosystem.events.length === this._lastEventCount) return;
+        this._lastEventCount = this.ecosystem.events.length;
 
         c.innerHTML = '';
-        for (const event of events.slice(0, 20)) {
+        for (const ev of this.ecosystem.events.slice(0, 20)) {
             const item = document.createElement('div');
-            item.className = `event-item event-${event.type}`;
-            item.textContent = event.message;
+            item.className = `event-item event-${ev.type}`;
+            item.textContent = ev.message;
             c.appendChild(item);
         }
     }
@@ -151,24 +145,35 @@ export class UIManager {
         this.els.creatureState.textContent = this._formatState(c.state);
         this.els.creatureGen.textContent = c.generation;
 
-        // ★ Energy bar — use CONFIG value, not hardcoded
-        const energyPercent = Math.max(0, c.energy / CREATURE.MAX_ENERGY);
-        this.els.creatureEnergyBar.style.width = (energyPercent * 100) + '%';
-        if (energyPercent < 0.3) {
-            this.els.creatureEnergyBar.style.background = 'linear-gradient(90deg, #ff4444, #ff6666)';
-        } else if (energyPercent < 0.6) {
-            this.els.creatureEnergyBar.style.background = 'linear-gradient(90deg, #ffaa00, #ffcc44)';
-        } else {
-            this.els.creatureEnergyBar.style.background = 'linear-gradient(90deg, var(--accent-primary), var(--accent-secondary))';
+        // ★ HP bar (red when low, green when high)
+        if (this.els.creatureHpBar) {
+            const hpPct = c.getHpPercent();
+            this.els.creatureHpBar.style.width = (hpPct * 100) + '%';
+            if (hpPct < 0.3) {
+                this.els.creatureHpBar.style.background = 'linear-gradient(90deg, #ff4444, #ff6666)';
+            } else if (hpPct < 0.6) {
+                this.els.creatureHpBar.style.background = 'linear-gradient(90deg, #ffaa00, #ffcc44)';
+            } else {
+                this.els.creatureHpBar.style.background = 'linear-gradient(90deg, #69f0ae, #00e676)';
+            }
         }
 
-        // ★ Fullness bar
+        // ★ Energy bar (cyan)
+        const energyPct = c.getEnergyPercent();
+        this.els.creatureEnergyBar.style.width = (energyPct * 100) + '%';
+        if (energyPct < 0.3) {
+            this.els.creatureEnergyBar.style.background = 'linear-gradient(90deg, #ff4444, #ff6666)';
+        } else {
+            this.els.creatureEnergyBar.style.background = 'linear-gradient(90deg, #00e5ff, #448aff)';
+        }
+
+        // ★ Fullness bar (green when full, red when hungry)
         if (this.els.creatureFullnessBar) {
-            const fullPercent = Math.max(0, c.fullness / CREATURE.FULLNESS_MAX);
-            this.els.creatureFullnessBar.style.width = (fullPercent * 100) + '%';
-            if (fullPercent > 0.7) {
+            const fullPct = Math.max(0, c.fullness / CREATURE.FULLNESS_MAX);
+            this.els.creatureFullnessBar.style.width = (fullPct * 100) + '%';
+            if (fullPct > 0.7) {
                 this.els.creatureFullnessBar.style.background = 'linear-gradient(90deg, #69f0ae, #00e5ff)';
-            } else if (fullPercent > 0.3) {
+            } else if (fullPct > 0.3) {
                 this.els.creatureFullnessBar.style.background = 'linear-gradient(90deg, #ffaa00, #ffcc44)';
             } else {
                 this.els.creatureFullnessBar.style.background = 'linear-gradient(90deg, #ff4444, #ff6666)';
@@ -178,7 +183,6 @@ export class UIManager {
         this.els.creatureDiet.textContent = c.getDietLabel();
         this.els.creatureAge.textContent = Math.floor(c.age / 60) + 's';
         this.els.creatureChildren.textContent = c.children;
-
         this._drawDNA(c);
     }
 
@@ -190,9 +194,11 @@ export class UIManager {
             'flee': '🏃 Fleeing!',
             'flock': '👥 Flocking',
             'hunt': '🎯 Hunting',
+            'fight': '⚔️ Fighting!',
             'explore': '🔍 Exploring',
             'critical_hunger': '⚠️ STARVING!',
             'digesting': '😋 Digesting',
+            'scavenge': '🥩 Scavenging',
         };
         return labels[state] || state;
     }
@@ -211,15 +217,13 @@ export class UIManager {
         }
     }
 
-    getSpeed() {
-        return parseFloat(this.els.speedSlider?.value || 1);
-    }
+    getSpeed() { return parseFloat(this.els.speedSlider?.value || 1); }
 
-    showToast(message, type = '') {
-        const toast = document.createElement('div');
-        toast.className = `toast ${type ? 'toast-' + type : ''}`;
-        toast.textContent = message;
-        this.els.toastContainer.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+    showToast(msg, type = '') {
+        const t = document.createElement('div');
+        t.className = `toast ${type ? 'toast-' + type : ''}`;
+        t.textContent = msg;
+        this.els.toastContainer.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
     }
 }

@@ -39,7 +39,7 @@ export class Renderer {
     }
 
     /**
-     * Draw all food sources
+     * Draw all food sources (plants + meat chunks)
      */
     drawFood(foodList) {
         const ctx = this.ctx;
@@ -50,23 +50,52 @@ export class Renderer {
             const pulse = 1 + Math.sin(food.pulsePhase) * 0.2;
             const size = food.size * pulse;
 
-            // Glow
-            ctx.beginPath();
-            ctx.arc(food.pos.x, food.pos.y, size * 3, 0, Math.PI * 2);
-            ctx.fillStyle = `hsla(${food.hue}, 80%, 60%, 0.06)`;
-            ctx.fill();
+            if (food.isMeat) {
+                // ★ MEAT CHUNK — irregular red/pink shape
+                const fadeAlpha = food.decayTimer > 100 ? 1 : food.decayTimer / 100;
 
-            // Core
-            ctx.beginPath();
-            ctx.arc(food.pos.x, food.pos.y, size, 0, Math.PI * 2);
-            ctx.fillStyle = `hsla(${food.hue}, 80%, 65%, 0.8)`;
-            ctx.fill();
+                // Red glow
+                ctx.beginPath();
+                ctx.arc(food.pos.x, food.pos.y, size * 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${food.hue}, 70%, 40%, ${0.06 * fadeAlpha})`;
+                ctx.fill();
 
-            // Bright center
-            ctx.beginPath();
-            ctx.arc(food.pos.x, food.pos.y, size * 0.4, 0, Math.PI * 2);
-            ctx.fillStyle = `hsla(${food.hue}, 60%, 85%, 0.9)`;
-            ctx.fill();
+                // Irregular meat shape
+                ctx.beginPath();
+                const sides = 5;
+                for (let i = 0; i < sides; i++) {
+                    const angle = (i / sides) * Math.PI * 2 + food.pulsePhase * 0.3;
+                    const r = size * (0.7 + Math.sin(angle * 3) * 0.3);
+                    const px = food.pos.x + Math.cos(angle) * r;
+                    const py = food.pos.y + Math.sin(angle) * r;
+                    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.fillStyle = `hsla(${food.hue}, 65%, 45%, ${0.85 * fadeAlpha})`;
+                ctx.fill();
+
+                // Bright center
+                ctx.beginPath();
+                ctx.arc(food.pos.x, food.pos.y, size * 0.3, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${food.hue}, 50%, 70%, ${0.7 * fadeAlpha})`;
+                ctx.fill();
+            } else {
+                // PLANT FOOD — round green
+                ctx.beginPath();
+                ctx.arc(food.pos.x, food.pos.y, size * 3, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${food.hue}, 80%, 60%, 0.06)`;
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(food.pos.x, food.pos.y, size, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${food.hue}, 80%, 65%, 0.8)`;
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(food.pos.x, food.pos.y, size * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${food.hue}, 60%, 85%, 0.9)`;
+                ctx.fill();
+            }
         }
     }
 
@@ -136,7 +165,12 @@ export class Renderer {
 
         ctx.beginPath();
         ctx.ellipse(0, 0, bodyW, bodyH, 0, 0, Math.PI * 2);
-        ctx.fillStyle = c.getColor(0.85);
+        // ★ Hit flash — flash red when taking damage
+        if (c.hitFlash > 0) {
+            ctx.fillStyle = `hsla(0, 90%, 60%, ${0.5 + c.hitFlash * 0.05})`;
+        } else {
+            ctx.fillStyle = c.getColor(0.85);
+        }
         ctx.fill();
 
         // Inner highlight
@@ -199,20 +233,29 @@ export class Renderer {
             ctx.fill();
         }
 
-        // --- Energy bar (only if low energy) ---
-        if (c.energy < CONFIG.CREATURE.INITIAL_ENERGY * 0.3) {
-            const barW = finalSize * 2;
-            const barH = 2;
-            const barX = pos.x - barW / 2;
-            const barY = pos.y + finalSize + 4;
-            const fillW = barW * (c.energy / CONFIG.CREATURE.MAX_ENERGY);
+        // --- HP bar (show when damaged) + Energy bar (show when low) ---
+        const hpPct = c.getHpPercent();
+        const barW = finalSize * 2.5;
+        const barH = 2;
+        const barX = pos.x - barW / 2;
 
+        if (hpPct < 1) {
+            // HP bar (red)
+            const hpY = pos.y + finalSize + 3;
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(barX, hpY, barW, barH);
+            const hpHue = hpPct > 0.5 ? 120 : (hpPct > 0.25 ? 40 : 0);
+            ctx.fillStyle = `hsla(${hpHue}, 80%, 55%, 0.9)`;
+            ctx.fillRect(barX, hpY, barW * hpPct, barH);
+        }
+
+        if (c.energy < CONFIG.CREATURE.MAX_ENERGY * 0.3) {
+            // Energy bar (cyan, below HP)
+            const enY = pos.y + finalSize + (hpPct < 1 ? 7 : 3);
             ctx.fillStyle = 'rgba(0,0,0,0.4)';
-            ctx.fillRect(barX, barY, barW, barH);
-
-            const energyHue = c.energy > 30 ? 120 : 0;
-            ctx.fillStyle = `hsla(${energyHue}, 80%, 55%, 0.8)`;
-            ctx.fillRect(barX, barY, fillW, barH);
+            ctx.fillRect(barX, enY, barW, barH);
+            ctx.fillStyle = `hsla(190, 80%, 55%, 0.7)`;
+            ctx.fillRect(barX, enY, barW * c.getEnergyPercent(), barH);
         }
     }
 

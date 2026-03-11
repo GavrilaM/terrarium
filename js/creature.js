@@ -1,41 +1,26 @@
 // ============================================
 // TERRARIUM — Creature System
-// Autonomous creature with species-driven behavior
-// + Satiety/Fullness system
+// HP + Energy + Fullness + Size-based Combat
 // ============================================
 
 import { CONFIG } from './config.js';
 import { expressDNA, getDietLabel, crossover, mutate } from './genetics.js';
 import { getSpeciesTypeFromDNA, generateSpeciesDNA, getRandomSpeciesType } from './species.js';
 
-const { CREATURE } = CONFIG;
+const { CREATURE, COMBAT } = CONFIG;
 
 let creatureIdCounter = 0;
 
 // ---- Vector2 Utilities ----
-
 function vec2(x = 0, y = 0) { return { x, y }; }
-
-function vec2Dist(a, b) {
-    const dx = a.x - b.x, dy = a.y - b.y;
-    return Math.sqrt(dx * dx + dy * dy);
-}
-
-function vec2Normalize(v) {
-    const len = Math.sqrt(v.x * v.x + v.y * v.y);
-    return len === 0 ? { x: 0, y: 0 } : { x: v.x / len, y: v.y / len };
-}
-
+function vec2Dist(a, b) { const dx = a.x - b.x, dy = a.y - b.y; return Math.sqrt(dx * dx + dy * dy); }
+function vec2Normalize(v) { const l = Math.sqrt(v.x * v.x + v.y * v.y); return l === 0 ? { x: 0, y: 0 } : { x: v.x / l, y: v.y / l }; }
 function vec2Sub(a, b) { return { x: a.x - b.x, y: a.y - b.y }; }
 function vec2Add(a, b) { return { x: a.x + b.x, y: a.y + b.y }; }
 function vec2Scale(v, s) { return { x: v.x * s, y: v.y * s }; }
-
 function vec2Limit(v, max) {
-    const lenSq = v.x * v.x + v.y * v.y;
-    if (lenSq > max * max) {
-        const n = vec2Normalize(v);
-        return { x: n.x * max, y: n.y * max };
-    }
+    const sq = v.x * v.x + v.y * v.y;
+    if (sq > max * max) { const n = vec2Normalize(v); return { x: n.x * max, y: n.y * max }; }
     return v;
 }
 
@@ -47,13 +32,15 @@ export const STATES = {
     FLEE: 'flee',
     FLOCK: 'flock',
     HUNT: 'hunt',
+    FIGHT: 'fight',
     EXPLORE: 'explore',
     CRITICAL_HUNGER: 'critical_hunger',
     DIGESTING: 'digesting',
+    SCAVENGE: 'scavenge',
 };
 
 /**
- * Factory function to create creatures with species type
+ * Factory — create creature with species type
  */
 export function createCreature(x, y, speciesType = null, dna = null, generation = 0) {
     const st = speciesType || getRandomSpeciesType();
@@ -68,7 +55,7 @@ export class Creature {
         this.vel = vec2((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2);
         this.acc = vec2(0, 0);
 
-        // Species identity
+        // Species
         this.speciesType = speciesType;
         this.behavior = speciesType.behavior;
 
@@ -79,18 +66,28 @@ export class Creature {
         this.traits.speed = speciesType.speedRange[0] + this.dna[1] * (speciesType.speedRange[1] - speciesType.speedRange[0]);
         this.speciesName = speciesType.name;
 
+        // ★ HP — health points (life force, 0 = death → meat chunks)
+        this.hp = CREATURE.INITIAL_HP;
+        this.maxHp = CREATURE.MAX_HP;
+
+        // ★ ENERGY — stamina (movement, attacks, sprinting)
+        this.energy = CREATURE.INITIAL_ENERGY;
+
+        // ★ FULLNESS — stomach capacity
+        this.fullness = CREATURE.FULLNESS_INITIAL;
+        this.digestCooldown = 0;
+
         // State
         this.state = STATES.WANDER;
-        this.energy = CREATURE.INITIAL_ENERGY;
         this.age = 0;
         this.generation = generation;
         this.alive = true;
         this.children = 0;
         this.reproductionCooldown = 0;
 
-        // ★ SATIETY / FULLNESS SYSTEM ★
-        this.fullness = CREATURE.FULLNESS_INITIAL;
-        this.digestCooldown = 0; // frames until can eat again
+        // Combat
+        this.attackCooldown = 0;
+        this.combatTarget = null;
 
         // Death tracking
         this.causeOfDeath = null;
@@ -102,34 +99,24 @@ export class Creature {
         this.wanderAngle = Math.random() * Math.PI * 2;
         this.pulsePhase = Math.random() * Math.PI * 2;
         this.eatTimer = 0;
+        this.hitFlash = 0; // visual flash when taking damage
     }
 
-    /**
-     * Is this creature hungry enough to seek food?
-     */
-    get isHungry() {
-        return this.fullness < CREATURE.FULLNESS_EAT_THRESHOLD;
-    }
+    // ---- Computed Properties ----
+
+    get isHungry() { return this.fullness < CREATURE.FULLNESS_EAT_THRESHOLD; }
+    get isFull() { return this.fullness >= CREATURE.FULLNESS_FULL_THRESHOLD; }
+    get isCriticalHunger() { return this.fullness < 15; }
+    get canEat() { return this.digestCooldown <= 0 && !this.isFull; }
+    get hasEnergy() { return this.energy > 10; }
+    get canAttack() { return this.attackCooldown <= 0 && this.energy >= CREATURE.ENERGY_ATTACK_COST; }
 
     /**
-     * Is this creature too full to eat?
+     * Effective speed — reduced when out of energy
      */
-    get isFull() {
-        return this.fullness >= CREATURE.FULLNESS_FULL_THRESHOLD;
-    }
-
-    /**
-     * Is this creature critically starving?
-     */
-    get isCritical() {
-        return this.energy < CREATURE.MAX_ENERGY * 0.30;
-    }
-
-    /**
-     * Can this creature eat right now? (not full + cooldown)
-     */
-    get canEat() {
-        return this.digestCooldown <= 0 && !this.isFull;
+    get effectiveSpeed() {
+        if (this.energy <= 0) return this.traits.speed * CREATURE.ENERGY_LOW_SPEED_MULT;
+        return this.traits.speed;
     }
 
     /**
@@ -142,22 +129,34 @@ export class Creature {
         this.glowPhase += 0.03 * dt;
         this.pulsePhase += 0.05 * dt;
         if (this.reproductionCooldown > 0) this.reproductionCooldown -= dt;
-        if (this.eatTimer > 0) this.eatTimer -= dt;
         if (this.digestCooldown > 0) this.digestCooldown -= dt;
+        if (this.attackCooldown > 0) this.attackCooldown -= dt;
+        if (this.eatTimer > 0) this.eatTimer -= dt;
+        if (this.hitFlash > 0) this.hitFlash -= dt;
 
-        // ★ Fullness decays over time (getting hungry)
-        const speciesHungerRate = this.speciesType.diet === 'carnivore' ? 0.6 : 1.0; // carnivores digest slower
-        this.fullness = Math.max(0, this.fullness - CREATURE.FULLNESS_DECAY * speciesHungerRate * dt);
+        // ★ Fullness decays (getting hungry)
+        const hungerRate = this.speciesType.diet === 'carnivore' ? 0.6 : 1.0;
+        this.fullness = Math.max(0, this.fullness - CREATURE.FULLNESS_DECAY * hungerRate * dt);
 
-        // Energy decay
-        const sizeCost = this.traits.size * 0.001;
-        const speedCost = this.traits.speed * CREATURE.ENERGY_MOVE_COST;
-        this.energy -= (CREATURE.ENERGY_DECAY + sizeCost + speedCost) * dt;
+        // ★ Energy decay (passive stamina drain)
+        const sizeCost = this.traits.size * 0.0005;
+        this.energy -= (CREATURE.ENERGY_DECAY + sizeCost) * dt;
+        this.energy = Math.max(0, this.energy);
 
-        // Die of starvation
-        if (this.energy <= 0) {
+        // ★ HP regen when well-fed and has energy
+        if (this.hp < this.maxHp && this.energy > CREATURE.MAX_ENERGY * 0.5 && this.fullness > 30) {
+            this.hp = Math.min(this.maxHp, this.hp + CREATURE.HP_REGEN * dt);
+        }
+
+        // ★ Starvation damage — when fullness = 0 for too long, HP slowly drops
+        if (this.fullness <= 0 && this.energy <= 0) {
+            this.hp -= 0.05 * dt;
+        }
+
+        // ★ Death check — HP <= 0
+        if (this.hp <= 0) {
             this.alive = false;
-            this.causeOfDeath = 'starvation';
+            if (!this.causeOfDeath) this.causeOfDeath = 'starvation';
             return;
         }
 
@@ -168,21 +167,24 @@ export class Creature {
             return;
         }
 
-        // Passive eating — only if hungry and can eat
-        if (this.canEat && !this.isFull) {
-            this._passiveEat(ecosystem);
-        }
+        // Passive eating (walk over food)
+        if (this.canEat && !this.isFull) this._passiveEat(ecosystem);
 
         // Decide behavior
         this._decide(ecosystem);
 
-        // Apply movement
+        // Apply movement with energy-aware speed
         this.vel = vec2Add(this.vel, this.acc);
-        this.vel = vec2Limit(this.vel, this.traits.speed);
+        this.vel = vec2Limit(this.vel, this.effectiveSpeed);
         this.pos = vec2Add(this.pos, vec2Scale(this.vel, dt));
         this.acc = vec2(0, 0);
 
-        // Wrap around edges
+        // Movement energy cost
+        const speed = Math.sqrt(this.vel.x * this.vel.x + this.vel.y * this.vel.y);
+        this.energy -= speed * CREATURE.ENERGY_MOVE_COST * dt;
+        this.energy = Math.max(0, this.energy);
+
+        // Wrap edges
         if (this.pos.x < 0) this.pos.x = canvasW;
         if (this.pos.x > canvasW) this.pos.x = 0;
         if (this.pos.y < 0) this.pos.y = canvasH;
@@ -190,73 +192,106 @@ export class Creature {
 
         // Trail
         this.trail.push({ x: this.pos.x, y: this.pos.y });
-        if (this.trail.length > CONFIG.VISUALS.TRAIL_LENGTH) {
-            this.trail.shift();
-        }
+        if (this.trail.length > CONFIG.VISUALS.TRAIL_LENGTH) this.trail.shift();
     }
 
-    /**
-     * PASSIVE EATING — eat food you walk over (only if hungry)
-     */
+    // ---- EATING ----
+
     _passiveEat(ecosystem) {
         if (this.speciesType.diet === 'carnivore') return;
-
-        const nearbyFood = ecosystem.getFoodNear(this.pos, this.traits.size + 5);
-        for (const food of nearbyFood) {
-            if (!food.alive) continue;
-            this._eatPlant(food, ecosystem);
+        const nearby = ecosystem.getFoodNear(this.pos, this.traits.size + 5);
+        for (const food of nearby) {
+            if (!food.alive || food.isMeat) continue; // carnivores don't passive-eat plants; herbivores don't eat meat
+            this._eatFood(food, ecosystem);
             return;
         }
     }
 
-    /**
-     * Actually consume plant food
-     */
-    _eatPlant(food, ecosystem) {
+    _eatFood(food, ecosystem) {
+        const fillAmount = food.isMeat ? CREATURE.FULLNESS_MEAT : CREATURE.FULLNESS_PLANT;
         this.energy = Math.min(CREATURE.MAX_ENERGY, this.energy + food.energy);
-        this.fullness = Math.min(CREATURE.FULLNESS_MAX, this.fullness + CREATURE.FULLNESS_PLANT);
+        this.fullness = Math.min(CREATURE.FULLNESS_MAX, this.fullness + fillAmount);
         this.digestCooldown = CREATURE.DIGEST_COOLDOWN;
         ecosystem.removeFood(food);
         this.eatTimer = 12;
     }
 
+    // ---- COMBAT ----
+
     /**
-     * Actually kill and consume prey
+     * Evaluate combat outcome based on size ratio
+     * Returns: 'instant_kill', 'fight', or 'avoid'
      */
-    _eatPrey(prey) {
-        this.energy = Math.min(CREATURE.MAX_ENERGY, this.energy + prey.energy * 0.5);
-        this.fullness = Math.min(CREATURE.FULLNESS_MAX, this.fullness + CREATURE.FULLNESS_PREY);
-        this.digestCooldown = CREATURE.DIGEST_COOLDOWN * 1.5; // meat takes longer to digest
-        prey.alive = false;
-        prey.causeOfDeath = 'killed';
-        prey.killedBy = this;
-        this.eatTimer = 20;
+    evaluatePrey(prey) {
+        const sizeRatio = prey.traits.size / this.traits.size;
+        if (sizeRatio < COMBAT.INSTANT_KILL_RATIO) return 'instant_kill';
+        if (sizeRatio < COMBAT.FIGHT_MAX_RATIO) return 'fight';
+        return 'avoid';
     }
 
     /**
-     * Priority-based decision system with FULLNESS awareness
-     * 
-     * P1: CRITICAL HUNGER (energy < 30%) → force eat regardless
-     * P2: DIGESTING (just ate, cooldown active) → wander peacefully
-     * P3: FLEE (threat nearby)
-     * P4: HUNGRY (fullness < threshold) → seek food
-     * P5: REPRODUCE (energy high + not hungry)
-     * P6: SPECIES BEHAVIOR (flock/hunt/explore)
-     * P7: WANDER
+     * Instant kill — swallow small prey, spawn meat chunks
      */
+    instantKill(prey, ecosystem) {
+        this.energy -= CREATURE.ENERGY_ATTACK_COST * 0.5; // cheaper than fighting
+        prey.alive = false;
+        prey.causeOfDeath = 'killed';
+        prey.killedBy = this;
+        ecosystem.spawnMeatChunks(prey); // ★ MEAT CHUNKS
+        this.eatTimer = 15;
+        this.attackCooldown = COMBAT.ATTACK_COOLDOWN * 0.5;
+    }
+
+    /**
+     * Attack in a fight — deals damage to prey, prey may fight back
+     */
+    attackCreature(prey) {
+        if (!this.canAttack) return;
+
+        this.energy -= CREATURE.ENERGY_ATTACK_COST;
+        this.attackCooldown = COMBAT.ATTACK_COOLDOWN;
+
+        // Damage based on size
+        const damage = COMBAT.ATTACK_DAMAGE * (this.traits.size / 10) * COMBAT.SIZE_DAMAGE_MULT;
+        prey.hp -= damage;
+        prey.hitFlash = 8;
+
+        // Counter-attack from prey
+        const counterDmg = COMBAT.ATTACK_DAMAGE * (prey.traits.size / 10) * COMBAT.COUNTER_DAMAGE_MULT;
+        this.hp -= counterDmg;
+        this.hitFlash = 5;
+
+        // Prey energy cost for defending
+        prey.energy = Math.max(0, prey.energy - CREATURE.ENERGY_ATTACK_COST * 0.3);
+    }
+
+    /**
+     * Take damage from external sources (toxic, etc.)
+     */
+    takeDamage(amount, cause = 'unknown') {
+        this.hp -= amount;
+        this.hitFlash = 5;
+        if (this.hp <= 0) {
+            this.alive = false;
+            this.causeOfDeath = cause;
+        }
+    }
+
+    // ---- DECISION SYSTEM ----
+
     _decide(ecosystem) {
         const nearbyFood = ecosystem.getFoodNear(this.pos, this.traits.perceptionRange);
         const nearbyCreatures = ecosystem.getCreaturesNear(this.pos, this.traits.perceptionRange, this.id);
 
-        // ===== P1: CRITICAL STARVATION — override everything =====
-        if (this.isCritical) {
+        // ===== P1: CRITICAL HUNGER → force eat anything =====
+        if (this.isCriticalHunger) {
             this.state = STATES.CRITICAL_HUNGER;
             if (this._seekAnyFood(ecosystem, nearbyFood, nearbyCreatures)) return;
             this._wander();
             return;
         }
 
-        // ===== P2: DIGESTING — just ate, rest and wander =====
+        // ===== P2: DIGESTING =====
         if (this.digestCooldown > CREATURE.DIGEST_COOLDOWN * 0.5) {
             this.state = STATES.DIGESTING;
             this._wander(this.behavior.wanderStrength * 0.5);
@@ -267,27 +302,29 @@ export class Creature {
         const threats = this._identifyThreats(nearbyCreatures);
         const nearestThreat = this._nearest(threats);
         if (nearestThreat) {
-            const threatDist = vec2Dist(this.pos, nearestThreat.pos);
-            if (threatDist < this.behavior.fleeDistance) {
+            const d = vec2Dist(this.pos, nearestThreat.pos);
+            if (d < this.behavior.fleeDistance) {
                 this.state = STATES.FLEE;
                 this._flee(nearestThreat.pos, this.behavior.fleeStrength);
+                // Sprint costs extra energy
+                this.energy = Math.max(0, this.energy - CREATURE.ENERGY_SPRINT_COST);
                 return;
             }
         }
 
-        // ===== P4: HUNGRY — seek food when fullness is low =====
+        // ===== P4: HUNGRY → seek food =====
         if (this.isHungry && this.canEat) {
             this.state = STATES.SEEK_FOOD;
             if (this._seekAnyFood(ecosystem, nearbyFood, nearbyCreatures)) return;
         }
 
         // ===== P5: REPRODUCE =====
-        if (this.energy >= CREATURE.REPRODUCTION_THRESHOLD && 
+        if (this.energy >= CREATURE.REPRODUCTION_THRESHOLD &&
             this.reproductionCooldown <= 0 &&
-            this.fullness > 30) { // don't mate when hungry
+            this.fullness > 30 &&
+            this.hp > this.maxHp * 0.5) {
             const mates = nearbyCreatures.filter(c =>
-                c.alive &&
-                c.speciesType.id === this.speciesType.id &&
+                c.alive && c.speciesType.id === this.speciesType.id &&
                 c.energy >= CREATURE.REPRODUCTION_THRESHOLD * 0.8 &&
                 c.reproductionCooldown <= 0
             );
@@ -303,24 +340,20 @@ export class Creature {
             }
         }
 
-        // ===== P6: SPECIES-SPECIFIC BEHAVIOR =====
+        // ===== P6: SPECIES BEHAVIOR =====
         this._speciesBehavior(nearbyCreatures, nearbyFood, ecosystem);
     }
 
-    /**
-     * Species-specific idle behavior
-     */
     _speciesBehavior(nearbyCreatures, nearbyFood, ecosystem) {
         const diet = this.speciesType.diet;
 
-        // FLORAE: Flock with other Florae
+        // FLORAE: Flock
         if (diet === 'herbivore' && this.behavior.socialDrive > 0.5) {
             const flock = nearbyCreatures.filter(c => c.speciesType.id === 'florae' && c.alive);
             if (flock.length > 0) {
                 this.state = STATES.FLOCK;
                 const center = this._centerOf(flock);
-                const dist = vec2Dist(this.pos, center);
-                if (dist > this.behavior.flockRadius * 0.3) {
+                if (vec2Dist(this.pos, center) > this.behavior.flockRadius * 0.3) {
                     this._seek(center, this.behavior.socialDrive * 0.5);
                 } else {
                     this._wander();
@@ -329,88 +362,154 @@ export class Creature {
             }
         }
 
-        // PREDAXI: Hunt only when hungry (not full!)
-        if (diet === 'carnivore' && this.behavior.aggression > 0.5 && !this.isFull && this.canEat) {
+        // PREDAXI: Hunt (with size-based combat!)
+        if (diet === 'carnivore' && this.behavior.aggression > 0.5 && !this.isFull && this.hasEnergy) {
+            // First check for meat chunks (scavenge = free food!)
+            const meatNearby = nearbyFood.filter(f => f.isMeat && f.alive);
+            if (meatNearby.length > 0 && this.canEat) {
+                const nearestMeat = this._nearestFood(meatNearby);
+                if (nearestMeat) {
+                    this.state = STATES.SCAVENGE;
+                    this._seek(nearestMeat.pos, this.behavior.seekFoodStrength);
+                    if (vec2Dist(this.pos, nearestMeat.pos) < this.traits.size + nearestMeat.size + 3) {
+                        this._eatFood(nearestMeat, ecosystem);
+                    }
+                    return;
+                }
+            }
+
+            // Hunt living prey
             const prey = nearbyCreatures.filter(c =>
-                c.speciesType.id !== 'predaxi' &&
-                c.traits.size < this.traits.size * 1.1 &&
-                c.alive
+                c.speciesType.id !== 'predaxi' && c.alive
             );
             const nearestPrey = this._nearest(prey);
             if (nearestPrey) {
-                this.state = STATES.HUNT;
-                this._seek(nearestPrey.pos, this.behavior.seekFoodStrength);
-                if (vec2Dist(this.pos, nearestPrey.pos) < this.traits.size + nearestPrey.traits.size) {
-                    this._eatPrey(nearestPrey);
+                const outcome = this.evaluatePrey(nearestPrey);
+
+                if (outcome === 'avoid') {
+                    // Too big — don't bother
+                } else if (outcome === 'instant_kill') {
+                    this.state = STATES.HUNT;
+                    this._seek(nearestPrey.pos, this.behavior.seekFoodStrength);
+                    this.energy = Math.max(0, this.energy - CREATURE.ENERGY_SPRINT_COST);
+                    if (vec2Dist(this.pos, nearestPrey.pos) < this.traits.size + nearestPrey.traits.size) {
+                        this.instantKill(nearestPrey, ecosystem);
+                    }
+                    return;
+                } else {
+                    // FIGHT — attack to weaken
+                    this.state = STATES.FIGHT;
+                    this._seek(nearestPrey.pos, this.behavior.seekFoodStrength);
+                    this.energy = Math.max(0, this.energy - CREATURE.ENERGY_SPRINT_COST);
+                    if (vec2Dist(this.pos, nearestPrey.pos) < this.traits.size + nearestPrey.traits.size + 3) {
+                        this.attackCreature(nearestPrey);
+                        if (!nearestPrey.alive || nearestPrey.hp <= 0) {
+                            nearestPrey.alive = false;
+                            nearestPrey.causeOfDeath = 'killed';
+                            nearestPrey.killedBy = this;
+                            ecosystem.spawnMeatChunks(nearestPrey);
+                        }
+                    }
+                    return;
                 }
-                return;
             }
         }
 
-        // MIXOLITH: Explore
+        // MIXOLITH: Explore + opportunistic scavenging
         if (diet === 'omnivore' && this.behavior.curiosity > 0.5) {
+            // Check for meat first (scavenge)
+            const meatNearby = nearbyFood.filter(f => f.isMeat && f.alive);
+            if (meatNearby.length > 0 && this.canEat && this.isHungry) {
+                const nearestMeat = this._nearestFood(meatNearby);
+                if (nearestMeat) {
+                    this.state = STATES.SCAVENGE;
+                    this._seek(nearestMeat.pos, this.behavior.seekFoodStrength);
+                    if (vec2Dist(this.pos, nearestMeat.pos) < this.traits.size + nearestMeat.size + 3) {
+                        this._eatFood(nearestMeat, ecosystem);
+                    }
+                    return;
+                }
+            }
+
             this.state = STATES.EXPLORE;
             if (Math.random() < 0.02) this.wanderAngle = Math.random() * Math.PI * 2;
             this._wander(this.behavior.wanderStrength);
             return;
         }
 
-        // Default: WANDER
         this.state = STATES.WANDER;
         this._wander();
     }
 
-    /**
-     * Seek any available food based on diet (with fullness check)
-     */
     _seekAnyFood(ecosystem, nearbyFood, nearbyCreatures) {
-        if (!this.canEat && !this.isCritical) return false;
-
+        if (!this.canEat && !this.isCriticalHunger) return false;
         const diet = this.speciesType.diet;
 
-        if (diet === 'herbivore') {
-            return this._seekPlantFood(nearbyFood, ecosystem);
-        }
+        if (diet === 'herbivore') return this._seekPlantFood(nearbyFood, ecosystem);
         if (diet === 'carnivore') {
-            return this._seekPrey(nearbyCreatures);
+            // Prefer scavenging meat chunks over hunting
+            if (this._seekMeatChunks(nearbyFood, ecosystem)) return true;
+            return this._seekPrey(nearbyCreatures, ecosystem);
         }
-        // Omnivore: prefer plants (easier), hunt if needed
+        // Omnivore
         if (this._seekPlantFood(nearbyFood, ecosystem)) return true;
-        return this._seekPrey(nearbyCreatures);
+        if (this._seekMeatChunks(nearbyFood, ecosystem)) return true;
+        return this._seekPrey(nearbyCreatures, ecosystem);
     }
 
     _seekPlantFood(nearbyFood, ecosystem) {
-        const nearestFood = this._nearestFood(nearbyFood);
-        if (!nearestFood) return false;
-
-        this._seek(nearestFood.pos, this.behavior.seekFoodStrength);
-
-        if (vec2Dist(this.pos, nearestFood.pos) < this.traits.size + nearestFood.size + 3) {
-            this._eatPlant(nearestFood, ecosystem);
+        const plants = nearbyFood.filter(f => !f.isMeat && f.alive);
+        const nearest = this._nearestFood(plants);
+        if (!nearest) return false;
+        this._seek(nearest.pos, this.behavior.seekFoodStrength);
+        if (vec2Dist(this.pos, nearest.pos) < this.traits.size + nearest.size + 3) {
+            this._eatFood(nearest, ecosystem);
         }
         return true;
     }
 
-    _seekPrey(nearbyCreatures) {
+    _seekMeatChunks(nearbyFood, ecosystem) {
+        const meat = nearbyFood.filter(f => f.isMeat && f.alive);
+        const nearest = this._nearestFood(meat);
+        if (!nearest) return false;
+        this.state = STATES.SCAVENGE;
+        this._seek(nearest.pos, this.behavior.seekFoodStrength);
+        if (vec2Dist(this.pos, nearest.pos) < this.traits.size + nearest.size + 3) {
+            this._eatFood(nearest, ecosystem);
+        }
+        return true;
+    }
+
+    _seekPrey(nearbyCreatures, ecosystem) {
         const prey = nearbyCreatures.filter(c =>
-            c.alive &&
-            c.traits.size < this.traits.size * 1.1 &&
-            c.speciesType.id !== this.speciesType.id
+            c.alive && c.speciesType.id !== this.speciesType.id
         );
         const nearestPrey = this._nearest(prey);
         if (!nearestPrey) return false;
 
-        this._seek(nearestPrey.pos, this.behavior.seekFoodStrength);
+        const outcome = this.evaluatePrey(nearestPrey);
+        if (outcome === 'avoid') return false;
 
-        if (vec2Dist(this.pos, nearestPrey.pos) < this.traits.size + nearestPrey.traits.size) {
-            this._eatPrey(nearestPrey);
+        this.state = outcome === 'instant_kill' ? STATES.HUNT : STATES.FIGHT;
+        this._seek(nearestPrey.pos, this.behavior.seekFoodStrength);
+        this.energy = Math.max(0, this.energy - CREATURE.ENERGY_SPRINT_COST);
+
+        if (vec2Dist(this.pos, nearestPrey.pos) < this.traits.size + nearestPrey.traits.size + 3) {
+            if (outcome === 'instant_kill') {
+                this.instantKill(nearestPrey, ecosystem);
+            } else {
+                this.attackCreature(nearestPrey);
+                if (nearestPrey.hp <= 0) {
+                    nearestPrey.alive = false;
+                    nearestPrey.causeOfDeath = 'killed';
+                    nearestPrey.killedBy = this;
+                    ecosystem.spawnMeatChunks(nearestPrey);
+                }
+            }
         }
         return true;
     }
 
-    /**
-     * Identify threats
-     */
     _identifyThreats(nearbyCreatures) {
         if (this.speciesType.diet === 'carnivore') {
             return nearbyCreatures.filter(c =>
@@ -418,42 +517,34 @@ export class Creature {
             );
         }
         return nearbyCreatures.filter(c =>
-            c.speciesType.diet === 'carnivore' && c.traits.size > this.traits.size * 0.7
+            c.speciesType.diet === 'carnivore' && c.traits.size > this.traits.size * 0.5
         );
     }
 
-    // ---- Steering Behaviors ----
+    // ---- Steering ----
 
     _seek(targetPos, strength = CREATURE.SEEK_STRENGTH) {
-        const desired = vec2Sub(targetPos, this.pos);
-        const dn = vec2Normalize(desired);
-        const steer = vec2Sub(vec2Scale(dn, this.traits.speed), this.vel);
+        const d = vec2Sub(targetPos, this.pos);
+        const steer = vec2Sub(vec2Scale(vec2Normalize(d), this.effectiveSpeed), this.vel);
         this.acc = vec2Add(this.acc, vec2Limit(steer, strength));
     }
 
     _flee(threatPos, strength = CREATURE.FLEE_STRENGTH) {
-        const desired = vec2Sub(this.pos, threatPos);
-        const dn = vec2Normalize(desired);
-        const steer = vec2Sub(vec2Scale(dn, this.traits.speed), this.vel);
+        const d = vec2Sub(this.pos, threatPos);
+        const steer = vec2Sub(vec2Scale(vec2Normalize(d), this.effectiveSpeed), this.vel);
         this.acc = vec2Add(this.acc, vec2Limit(steer, strength));
     }
 
     _wander(strength) {
         const s = strength || this.behavior.wanderStrength || CREATURE.WANDER_STRENGTH;
         this.wanderAngle += (Math.random() - 0.5) * 0.5;
-        this.acc = vec2Add(this.acc, {
-            x: Math.cos(this.wanderAngle) * s,
-            y: Math.sin(this.wanderAngle) * s,
-        });
+        this.acc = vec2Add(this.acc, { x: Math.cos(this.wanderAngle) * s, y: Math.sin(this.wanderAngle) * s });
     }
 
-    /**
-     * Reproduce
-     */
+    // ---- Reproduction ----
+
     reproduce(mate) {
-        if (this.energy < CREATURE.REPRODUCTION_COST || mate.energy < CREATURE.REPRODUCTION_COST * 0.8) {
-            return null;
-        }
+        if (this.energy < CREATURE.REPRODUCTION_COST || mate.energy < CREATURE.REPRODUCTION_COST * 0.8) return null;
 
         this.energy -= CREATURE.REPRODUCTION_COST;
         mate.energy -= CREATURE.REPRODUCTION_COST * 0.8;
@@ -462,45 +553,26 @@ export class Creature {
 
         let childDNA = crossover(this.dna, mate.dna);
         childDNA = mutate(childDNA);
-
         const childGen = Math.max(this.generation, mate.generation) + 1;
-        const offset = {
-            x: (Math.random() - 0.5) * 30,
-            y: (Math.random() - 0.5) * 30,
-        };
-
+        const offset = { x: (Math.random() - 0.5) * 30, y: (Math.random() - 0.5) * 30 };
         this.children++;
         mate.children++;
 
-        const childSpecies = getSpeciesTypeFromDNA(childDNA);
-
-        return new Creature(
-            this.pos.x + offset.x,
-            this.pos.y + offset.y,
-            childDNA,
-            childSpecies,
-            childGen
-        );
+        return new Creature(this.pos.x + offset.x, this.pos.y + offset.y, childDNA, getSpeciesTypeFromDNA(childDNA), childGen);
     }
 
     // ---- Helpers ----
 
     _nearest(entities) {
-        let nearest = null, nearestDist = Infinity;
-        for (const e of entities) {
-            const d = vec2Dist(this.pos, e.pos);
-            if (d < nearestDist) { nearestDist = d; nearest = e; }
-        }
-        return nearest;
+        let near = null, nd = Infinity;
+        for (const e of entities) { const d = vec2Dist(this.pos, e.pos); if (d < nd) { nd = d; near = e; } }
+        return near;
     }
 
     _nearestFood(foodList) {
-        let nearest = null, nearestDist = Infinity;
-        for (const f of foodList) {
-            const d = vec2Dist(this.pos, f.pos);
-            if (d < nearestDist) { nearestDist = d; nearest = f; }
-        }
-        return nearest;
+        let near = null, nd = Infinity;
+        for (const f of foodList) { const d = vec2Dist(this.pos, f.pos); if (d < nd) { nd = d; near = f; } }
+        return near;
     }
 
     _centerOf(creatures) {
@@ -509,21 +581,12 @@ export class Creature {
         return { x: cx / creatures.length, y: cy / creatures.length };
     }
 
-    // ---- Visual Helpers ----
+    // ---- Visuals ----
 
-    getColor(alpha = 1) {
-        return `hsla(${this.traits.hue}, ${this.traits.saturation}%, 65%, ${alpha})`;
-    }
-
-    getGlowColor(alpha = 0.3) {
-        return `hsla(${this.traits.hue}, ${this.traits.saturation}%, 65%, ${alpha})`;
-    }
-
-    getDietLabel() {
-        return getDietLabel(this.traits.diet);
-    }
-
-    getFullnessPercent() {
-        return Math.round((this.fullness / CREATURE.FULLNESS_MAX) * 100);
-    }
+    getColor(alpha = 1) { return `hsla(${this.traits.hue}, ${this.traits.saturation}%, 65%, ${alpha})`; }
+    getGlowColor(alpha = 0.3) { return `hsla(${this.traits.hue}, ${this.traits.saturation}%, 65%, ${alpha})`; }
+    getDietLabel() { return getDietLabel(this.traits.diet); }
+    getFullnessPercent() { return Math.round((this.fullness / CREATURE.FULLNESS_MAX) * 100); }
+    getHpPercent() { return Math.max(0, this.hp / this.maxHp); }
+    getEnergyPercent() { return Math.max(0, this.energy / CREATURE.MAX_ENERGY); }
 }
