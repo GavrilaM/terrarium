@@ -1,6 +1,6 @@
 // ============================================
 // TERRARIUM — UI Manager
-// Dashboard stats, controls, event log
+// Dashboard stats, controls, event log, eras
 // ============================================
 
 export class UIManager {
@@ -14,6 +14,9 @@ export class UIManager {
             generationCount: document.getElementById('generation-count'),
             speciesCount: document.getElementById('species-count'),
             fpsCount: document.getElementById('fps-count'),
+            eraEmoji: document.getElementById('era-emoji'),
+            eraName: document.getElementById('era-name'),
+            eraBadge: document.getElementById('era-badge'),
             speciesList: document.getElementById('species-list'),
             eventLog: document.getElementById('event-log'),
             speedSlider: document.getElementById('speed-slider'),
@@ -21,6 +24,7 @@ export class UIManager {
             creatureInfo: document.getElementById('creature-info'),
             creatureName: document.getElementById('creature-name'),
             creatureSpecies: document.getElementById('creature-species'),
+            creatureState: document.getElementById('creature-state'),
             creatureGen: document.getElementById('creature-gen'),
             creatureEnergyBar: document.getElementById('creature-energy-bar'),
             creatureDiet: document.getElementById('creature-diet'),
@@ -31,19 +35,17 @@ export class UIManager {
         };
 
         this._lastEventCount = 0;
+        this._lastEraId = null;
         this._setupListeners();
     }
 
     _setupListeners() {
-        // Close creature info
         document.getElementById('close-creature-info')?.addEventListener('click', () => {
             this.deselectCreature();
         });
 
-        // Speed slider
         this.els.speedSlider?.addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            this.els.speedValue.textContent = val + 'x';
+            this.els.speedValue.textContent = parseFloat(e.target.value) + 'x';
         });
     }
 
@@ -58,6 +60,17 @@ export class UIManager {
         this.els.generationCount.textContent = stats.maxGeneration;
         this.els.speciesCount.textContent = stats.speciesCount;
         this.els.fpsCount.textContent = fps;
+
+        // Era display
+        if (stats.currentEra && stats.currentEra.id !== this._lastEraId) {
+            this._lastEraId = stats.currentEra.id;
+            this.els.eraEmoji.textContent = stats.currentEra.emoji;
+            this.els.eraName.textContent = stats.currentEra.name;
+            // Animate era transition
+            this.els.eraBadge?.classList.remove('era-transition');
+            void this.els.eraBadge?.offsetWidth; // force reflow for re-animation
+            this.els.eraBadge?.classList.add('era-transition');
+        }
 
         // Species list
         this._updateSpeciesList(stats.speciesList);
@@ -75,7 +88,6 @@ export class UIManager {
         const container = this.els.speciesList;
         if (!container) return;
 
-        // Only rebuild if changed
         if (this._lastSpeciesCount === speciesList.length && Math.random() > 0.05) return;
         this._lastSpeciesCount = speciesList.length;
 
@@ -84,6 +96,7 @@ export class UIManager {
             const item = document.createElement('div');
             item.className = 'species-item';
             item.innerHTML = `
+                <span class="species-emoji">${species.emoji || '🧬'}</span>
                 <span class="species-color" style="color: hsl(${species.hue}, ${species.saturation}%, 65%); background: hsl(${species.hue}, ${species.saturation}%, 65%)"></span>
                 <span class="species-name">${species.name}</span>
                 <span class="species-count">${species.count}</span>
@@ -105,25 +118,15 @@ export class UIManager {
         this._lastEventCount = events.length;
 
         container.innerHTML = '';
-        for (const event of events.slice(0, 15)) {
+        for (const event of events.slice(0, 20)) {
             const item = document.createElement('div');
             item.className = `event-item event-${event.type}`;
-
-            let icon = '📋';
-            if (event.type === 'birth') icon = '🧬';
-            if (event.type === 'death') icon = '💀';
-            if (event.type === 'evolution') icon = '⭐';
-            if (event.type === 'extinction') icon = '☄️';
-            if (event.type === 'system') icon = '🌱';
-
-            item.innerHTML = `<span class="event-icon">${icon}</span> ${event.message}`;
+            // Events already contain emojis from ecosystem
+            item.textContent = event.message;
             container.appendChild(item);
         }
     }
 
-    /**
-     * Select a creature to show its info
-     */
     selectCreature(creature) {
         this.selectedCreature = creature;
         this.els.creatureInfo.classList.remove('hidden');
@@ -142,25 +145,49 @@ export class UIManager {
             return;
         }
 
-        this.els.creatureName.textContent = `${c.speciesName} #${c.id}`;
-        this.els.creatureSpecies.textContent = c.speciesName;
+        const emoji = c.speciesType?.emoji || '🧬';
+        this.els.creatureName.textContent = `${emoji} ${c.speciesName} #${c.id}`;
+        this.els.creatureSpecies.textContent = `${c.speciesName} (${c.speciesType?.diet || 'unknown'})`;
+        this.els.creatureState.textContent = this._formatState(c.state);
         this.els.creatureGen.textContent = c.generation;
-        this.els.creatureEnergyBar.style.width = Math.max(0, (c.energy / 150) * 100) + '%';
+        this.els.creatureEnergyBar.style.width = Math.max(0, (c.energy / 180) * 100) + '%';
+
+        // Color energy bar based on level
+        const energyPercent = c.energy / 180;
+        if (energyPercent < 0.3) {
+            this.els.creatureEnergyBar.style.background = 'linear-gradient(90deg, #ff4444, #ff6666)';
+        } else if (energyPercent < 0.6) {
+            this.els.creatureEnergyBar.style.background = 'linear-gradient(90deg, #ffaa00, #ffcc44)';
+        } else {
+            this.els.creatureEnergyBar.style.background = 'linear-gradient(90deg, var(--accent-primary), var(--accent-secondary))';
+        }
+
         this.els.creatureDiet.textContent = c.getDietLabel();
         this.els.creatureAge.textContent = Math.floor(c.age / 60) + 's';
         this.els.creatureChildren.textContent = c.children;
 
-        // DNA visualization
         this._drawDNA(c);
+    }
+
+    _formatState(state) {
+        const stateLabels = {
+            'wander': '🚶 Wandering',
+            'seek_food': '🍽️ Seeking Food',
+            'seek_mate': '💕 Seeking Mate',
+            'flee': '🏃 Fleeing!',
+            'flock': '👥 Flocking',
+            'hunt': '🎯 Hunting',
+            'explore': '🔍 Exploring',
+            'critical_hunger': '⚠️ STARVING!',
+        };
+        return stateLabels[state] || state;
     }
 
     _drawDNA(creature) {
         const canvas = this.els.creatureDnaVis;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        const w = canvas.width;
-        const h = canvas.height;
-
+        const w = canvas.width, h = canvas.height;
         ctx.clearRect(0, 0, w, h);
 
         const dna = creature.dna;
@@ -170,30 +197,20 @@ export class UIManager {
             const val = dna[i];
             const hue = (val * 360) % 360;
             const barH = val * (h - 4);
-
             ctx.fillStyle = `hsla(${hue}, 70%, 55%, 0.8)`;
             ctx.fillRect(i * geneW + 1, h - barH - 2, geneW - 2, barH);
         }
     }
 
-    /**
-     * Get current speed multiplier
-     */
     getSpeed() {
         return parseFloat(this.els.speedSlider?.value || 1);
     }
 
-    /**
-     * Show a toast notification
-     */
     showToast(message, type = '') {
         const toast = document.createElement('div');
         toast.className = `toast ${type ? 'toast-' + type : ''}`;
         toast.textContent = message;
         this.els.toastContainer.appendChild(toast);
-
-        setTimeout(() => {
-            toast.remove();
-        }, 3000);
+        setTimeout(() => toast.remove(), 3000);
     }
 }

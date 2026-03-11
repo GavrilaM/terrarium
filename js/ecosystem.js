@@ -1,11 +1,12 @@
 // ============================================
 // TERRARIUM — Ecosystem Manager
-// Manages creatures, food, spatial queries
+// Manages creatures, food, spatial queries, eras
 // ============================================
 
 import { CONFIG } from './config.js';
-import { Creature } from './creature.js';
-import { generateRandomDNA, geneticDistance } from './genetics.js';
+import { Creature, createCreature } from './creature.js';
+import { geneticDistance } from './genetics.js';
+import { getCurrentEra, getRandomSpeciesType, SPECIES_TYPES } from './species.js';
 
 const { ECOSYSTEM } = CONFIG;
 
@@ -17,7 +18,7 @@ class Food {
         this.pos = { x, y };
         this.energy = ECOSYSTEM.FOOD_ENERGY;
         this.size = ECOSYSTEM.FOOD_SIZE_MIN + Math.random() * (ECOSYSTEM.FOOD_SIZE_MAX - ECOSYSTEM.FOOD_SIZE_MIN);
-        this.hue = 100 + Math.random() * 40; // green-ish
+        this.hue = 100 + Math.random() * 40;
         this.pulsePhase = Math.random() * Math.PI * 2;
         this.alive = true;
     }
@@ -33,10 +34,17 @@ export class Ecosystem {
         this.stats = {
             totalBorn: 0,
             totalDied: 0,
+            totalStarved: 0,
+            totalKilled: 0,
+            totalOldAge: 0,
             maxGeneration: 0,
             speciesList: [],
             populationHistory: [],
         };
+
+        // Evolution era
+        this.currentEra = getCurrentEra(0);
+        this.previousEra = null;
 
         // Spatial grid for performance
         this.gridSize = 100;
@@ -46,11 +54,12 @@ export class Ecosystem {
     }
 
     _init() {
-        // Spawn initial creatures
+        // Spawn initial creatures — balanced species mix
         for (let i = 0; i < ECOSYSTEM.INITIAL_CREATURES; i++) {
             const x = Math.random() * this.width;
             const y = Math.random() * this.height;
-            this.creatures.push(new Creature(x, y));
+            const creature = createCreature(x, y);
+            this.creatures.push(creature);
             this.stats.totalBorn++;
         }
 
@@ -63,10 +72,9 @@ export class Ecosystem {
     }
 
     /**
-     * Main update — called each frame
+     * Main update
      */
     update(dt = 1) {
-        // Rebuild spatial grid
         this._buildGrid();
 
         // Update all creatures
@@ -74,11 +82,11 @@ export class Ecosystem {
             creature.update(this, this.width, this.height, dt);
         }
 
-        // Remove dead creatures
+        // Process dead creatures with detailed logging
         const deadCreatures = this.creatures.filter(c => !c.alive);
         for (const dead of deadCreatures) {
             this.stats.totalDied++;
-            this._addEvent('death', `${dead.speciesName} has perished (Gen ${dead.generation})`);
+            this._logDeath(dead);
         }
         this.creatures = this.creatures.filter(c => c.alive);
 
@@ -100,17 +108,23 @@ export class Ecosystem {
             this._updateSpecies();
         }
 
-        // Track max generation
+        // Track max generation & era
         for (const c of this.creatures) {
             if (c.generation > this.stats.maxGeneration) {
                 this.stats.maxGeneration = c.generation;
-                if (c.generation > 1) {
-                    this._addEvent('evolution', `Generation ${c.generation} reached! (${c.speciesName})`);
-                }
+                this._addEvent('evolution', `⭐ Generation ${c.generation} reached! (${c.speciesName})`);
             }
         }
 
-        // Population history (sample every ~60 frames)
+        // Check era transition
+        const newEra = getCurrentEra(this.stats.maxGeneration);
+        if (newEra.id !== this.currentEra.id) {
+            this.previousEra = this.currentEra;
+            this.currentEra = newEra;
+            this._addEvent('era', `🌟 ERA SHIFT: ${newEra.emoji} ${newEra.name}! — ${newEra.description}`);
+        }
+
+        // Population history
         if (Math.random() < 0.016) {
             this.stats.populationHistory.push(this.creatures.length);
             if (this.stats.populationHistory.length > 200) {
@@ -120,11 +134,42 @@ export class Ecosystem {
     }
 
     /**
-     * Spatial grid management
+     * Log death with cause
      */
+    _logDeath(creature) {
+        const cause = creature.causeOfDeath || 'unknown';
+        const species = creature.speciesName;
+        const gen = creature.generation;
+        const emoji = creature.speciesType?.emoji || '💀';
+
+        switch (cause) {
+            case 'starvation':
+                this.stats.totalStarved++;
+                this._addEvent('death', `${emoji} ${species} #${creature.id} starved (Gen ${gen}, age ${Math.floor(creature.age / 60)}s)`);
+                break;
+            case 'killed':
+                this.stats.totalKilled++;
+                const killerName = creature.killedBy
+                    ? `${creature.killedBy.speciesName} #${creature.killedBy.id}`
+                    : 'unknown predator';
+                this._addEvent('death', `${emoji} ${species} #${creature.id} killed by ${killerName} (Gen ${gen})`);
+                break;
+            case 'old_age':
+                this.stats.totalOldAge++;
+                this._addEvent('death', `${emoji} ${species} #${creature.id} died of old age (Gen ${gen}, ${creature.children} children)`);
+                break;
+            case 'cataclysm':
+                this._addEvent('death', `${emoji} ${species} #${creature.id} lost in cataclysm`);
+                break;
+            default:
+                this._addEvent('death', `${emoji} ${species} #${creature.id} perished (Gen ${gen})`);
+        }
+    }
+
+    // ---- Spatial Grid ----
+
     _buildGrid() {
         this.grid = {};
-
         for (const creature of this.creatures) {
             const key = this._gridKey(creature.pos);
             if (!this.grid[key]) this.grid[key] = [];
@@ -133,9 +178,7 @@ export class Ecosystem {
     }
 
     _gridKey(pos) {
-        const gx = Math.floor(pos.x / this.gridSize);
-        const gy = Math.floor(pos.y / this.gridSize);
-        return `${gx},${gy}`;
+        return `${Math.floor(pos.x / this.gridSize)},${Math.floor(pos.y / this.gridSize)}`;
     }
 
     _getNearbyCells(pos, radius) {
@@ -143,50 +186,42 @@ export class Ecosystem {
         const cellRadius = Math.ceil(radius / this.gridSize);
         const cx = Math.floor(pos.x / this.gridSize);
         const cy = Math.floor(pos.y / this.gridSize);
-
         for (let dx = -cellRadius; dx <= cellRadius; dx++) {
             for (let dy = -cellRadius; dy <= cellRadius; dy++) {
                 const key = `${cx + dx},${cy + dy}`;
-                if (this.grid[key]) {
-                    results.push(...this.grid[key]);
-                }
+                if (this.grid[key]) results.push(...this.grid[key]);
             }
         }
         return results;
     }
 
-    /**
-     * Spatial queries (used by Creature for decision-making)
-     */
+    // ---- Spatial Queries ----
+
     getCreaturesNear(pos, radius, excludeId = -1) {
-        const nearby = this._getNearbyCells(pos, radius);
-        return nearby.filter(c => {
+        return this._getNearbyCells(pos, radius).filter(c => {
             if (c.id === excludeId || !c.alive) return false;
-            const dx = c.pos.x - pos.x;
-            const dy = c.pos.y - pos.y;
+            const dx = c.pos.x - pos.x, dy = c.pos.y - pos.y;
             return (dx * dx + dy * dy) <= radius * radius;
         });
     }
 
     getFoodNear(pos, radius) {
-        // Simple distance check (food isn't in grid for simplicity)
         return this.food.filter(f => {
             if (!f.alive) return false;
-            const dx = f.pos.x - pos.x;
-            const dy = f.pos.y - pos.y;
+            const dx = f.pos.x - pos.x, dy = f.pos.y - pos.y;
             return (dx * dx + dy * dy) <= radius * radius;
         });
     }
 
-    /**
-     * Mutation methods
-     */
+    // ---- Mutations ----
+
     addCreature(creature) {
         if (this.creatures.length < ECOSYSTEM.MAX_CREATURES) {
             this.creatures.push(creature);
             this.stats.totalBorn++;
-            if (creature.generation > 1 && Math.random() < 0.3) {
-                this._addEvent('birth', `New ${creature.speciesName} born! (Gen ${creature.generation})`);
+            if (creature.generation > 0 && Math.random() < 0.2) {
+                const emoji = creature.speciesType?.emoji || '🧬';
+                this._addEvent('birth', `${emoji} New ${creature.speciesName} born! (Gen ${creature.generation})`);
             }
             return true;
         }
@@ -197,43 +232,40 @@ export class Ecosystem {
         food.alive = false;
     }
 
-    /**
-     * Spawn food at random position
-     */
     _spawnFood() {
-        const x = Math.random() * this.width;
-        const y = Math.random() * this.height;
-        this.food.push(new Food(x, y));
+        this.food.push(new Food(Math.random() * this.width, Math.random() * this.height));
     }
 
     /**
-     * Spawn food at specific position (user interaction)
+     * User interaction: scatter food
      */
     spawnFoodAt(x, y, count = 5) {
         for (let i = 0; i < count; i++) {
-            const fx = x + (Math.random() - 0.5) * 60;
-            const fy = y + (Math.random() - 0.5) * 60;
-            this.food.push(new Food(fx, fy));
+            this.food.push(new Food(
+                x + (Math.random() - 0.5) * 60,
+                y + (Math.random() - 0.5) * 60
+            ));
         }
-        this._addEvent('system', `Food scattered at (${Math.round(x)}, ${Math.round(y)})`);
+        this._addEvent('system', `🌱 Food scattered at (${Math.round(x)}, ${Math.round(y)})`);
     }
 
     /**
-     * Spawn a random creature at position (user interaction)
+     * User interaction: spawn specific species
      */
-    spawnCreatureAt(x, y) {
+    spawnCreatureAt(x, y, speciesType = null) {
         if (this.creatures.length < ECOSYSTEM.MAX_CREATURES) {
-            const creature = new Creature(x, y);
+            const creature = createCreature(x, y, speciesType);
             this.creatures.push(creature);
             this.stats.totalBorn++;
-            this._addEvent('birth', `New ${creature.speciesName} introduced!`);
+            const emoji = creature.speciesType?.emoji || '🧬';
+            this._addEvent('birth', `${emoji} New ${creature.speciesName} introduced!`);
             return creature;
         }
         return null;
     }
 
     /**
-     * Extinction event — kill random percentage
+     * Extinction event
      */
     triggerExtinction(severity = 0.5) {
         const killCount = Math.floor(this.creatures.length * severity);
@@ -241,13 +273,14 @@ export class Ecosystem {
             const idx = Math.floor(Math.random() * this.creatures.length);
             if (this.creatures[idx]) {
                 this.creatures[idx].alive = false;
+                this.creatures[idx].causeOfDeath = 'cataclysm';
             }
         }
         this._addEvent('extinction', `☄️ Cataclysm! ${killCount} creatures perished!`);
     }
 
     /**
-     * Species classification — group by genetic similarity
+     * Species classification — group by species type
      */
     _updateSpecies() {
         if (this.creatures.length === 0) {
@@ -255,20 +288,22 @@ export class Ecosystem {
             return;
         }
 
-        // Simple clustering: group by species name (derived from DNA)
         const speciesMap = {};
         for (const c of this.creatures) {
-            if (!speciesMap[c.speciesName]) {
-                speciesMap[c.speciesName] = {
-                    name: c.speciesName,
+            const key = c.speciesType.id;
+            if (!speciesMap[key]) {
+                speciesMap[key] = {
+                    name: c.speciesType.name,
+                    emoji: c.speciesType.emoji,
                     count: 0,
                     hue: c.traits.hue,
                     saturation: c.traits.saturation,
                     avgGen: 0,
+                    diet: c.speciesType.diet,
                 };
             }
-            speciesMap[c.speciesName].count++;
-            speciesMap[c.speciesName].avgGen += c.generation;
+            speciesMap[key].count++;
+            speciesMap[key].avgGen += c.generation;
         }
 
         this.stats.speciesList = Object.values(speciesMap)
@@ -276,40 +311,26 @@ export class Ecosystem {
             .sort((a, b) => b.count - a.count);
     }
 
-    /**
-     * Event log
-     */
+    // ---- Event Log ----
+
     _addEvent(type, message) {
         this.events.unshift({ type, message, time: Date.now() });
-        if (this.events.length > 50) this.events.pop();
+        if (this.events.length > 80) this.events.pop();
     }
 
-    /**
-     * Get creature at position (for user click)
-     */
+    // ---- User Click ----
+
     getCreatureAt(x, y) {
         for (const c of this.creatures) {
-            const dx = c.pos.x - x;
-            const dy = c.pos.y - y;
-            const hitRadius = c.traits.size + 15; // generous hit area for moving creatures
-            if (dx * dx + dy * dy <= hitRadius * hitRadius) {
-                return c;
-            }
+            const dx = c.pos.x - x, dy = c.pos.y - y;
+            const hitRadius = c.traits.size + 15;
+            if (dx * dx + dy * dy <= hitRadius * hitRadius) return c;
         }
         return null;
     }
 
-    /**
-     * Resize handler
-     */
-    resize(w, h) {
-        this.width = w;
-        this.height = h;
-    }
+    resize(w, h) { this.width = w; this.height = h; }
 
-    /**
-     * Get stats for UI
-     */
     getStats() {
         return {
             population: this.creatures.length,
@@ -318,7 +339,11 @@ export class Ecosystem {
             speciesList: this.stats.speciesList,
             totalBorn: this.stats.totalBorn,
             totalDied: this.stats.totalDied,
+            totalStarved: this.stats.totalStarved,
+            totalKilled: this.stats.totalKilled,
+            totalOldAge: this.stats.totalOldAge,
             foodCount: this.food.length,
+            currentEra: this.currentEra,
         };
     }
 }

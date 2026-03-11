@@ -149,6 +149,48 @@ html, body {
     letter-spacing: 0.5px;
 }
 
+/* Era Badge */
+.era-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-md);
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-xl);
+    font-size: 12px;
+    color: var(--accent-purple);
+    font-weight: 500;
+    margin-left: var(--space-md);
+    transition: var(--transition-normal);
+    white-space: nowrap;
+}
+
+.era-badge.era-transition {
+    animation: eraGlow 1.5s ease;
+}
+
+@keyframes eraGlow {
+    0%   { box-shadow: 0 0 0px rgba(179, 136, 255, 0); border-color: var(--surface-border); }
+    30%  { box-shadow: 0 0 20px rgba(179, 136, 255, 0.5); border-color: var(--accent-purple); transform: scale(1.05); }
+    100% { box-shadow: 0 0 0px rgba(179, 136, 255, 0); border-color: var(--surface-border); transform: scale(1); }
+}
+
+#era-emoji {
+    font-size: 14px;
+}
+
+#era-name {
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+
+/* Species emoji in list */
+.species-emoji {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
 .top-stats {
     display: flex;
     gap: var(--space-sm);
@@ -410,6 +452,8 @@ html, body {
 .event-item.event-death { color: var(--accent-red); }
 .event-item.event-evolution { color: var(--accent-purple); }
 .event-item.event-extinction { color: var(--accent-amber); }
+.event-item.event-era { color: var(--accent-purple); font-weight: 600; }
+.event-item.event-system { color: var(--accent-cyan); }
 
 @keyframes fadeInEvent {
     from { opacity: 0; transform: translateX(10px); }
