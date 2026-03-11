@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Terrarium — AI-driven digital ecosystem where creatures live, evolve, and adapt in real-time. Watch natural selection unfold in your browser.">
+    <meta property="og:title" content="Terrarium — Digital Ecosystem">
+    <meta property="og:description" content="AI-driven digital ecosystem where creatures live, evolve, and adapt in real-time.">
+    <meta property="og:type" content="website">
+    <title>🌿 Terrarium — Digital Ecosystem</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Main Canvas -->
+    <canvas id="terrarium-canvas"></canvas>
+
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+        <!-- Top Bar -->
+        <header id="top-bar">
+            <div class="logo">
+                <span class="logo-icon">🌿</span>
+                <h1>Terrarium</h1>
+            </div>
+            <div class="top-stats">
+                <div class="stat-chip" id="stat-population">
+                    <span class="stat-label">Population</span>
+                    <span class="stat-value" id="population-count">0</span>
+                </div>
+                <div class="stat-chip" id="stat-generation">
+                    <span class="stat-label">Generation</span>
+                    <span class="stat-value" id="generation-count">0</span>
+                </div>
+                <div class="stat-chip" id="stat-species">
+                    <span class="stat-label">Species</span>
+                    <span class="stat-value" id="species-count">0</span>
+                </div>
+                <div class="stat-chip" id="stat-fps">
+                    <span class="stat-label">FPS</span>
+                    <span class="stat-value" id="fps-count">60</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Side Panel -->
+        <aside id="side-panel">
+            <!-- Controls -->
+            <div class="panel-section" id="controls-section">
+                <h2 class="panel-title">Controls</h2>
+                <div class="control-group">
+                    <button class="ctrl-btn" id="btn-add-food" title="Add Food">
+                        <span class="ctrl-icon">🌱</span>
+                        <span class="ctrl-label">Add Food</span>
+                    </button>
+                    <button class="ctrl-btn" id="btn-add-creature" title="Add Creature">
+                        <span class="ctrl-icon">🧬</span>
+                        <span class="ctrl-label">New Life</span>
+                    </button>
+                    <button class="ctrl-btn" id="btn-extinction" title="Extinction Event">
+                        <span class="ctrl-icon">☄️</span>
+                        <span class="ctrl-label">Cataclysm</span>
+                    </button>
+                </div>
+                <div class="control-group">
+                    <label class="slider-label">
+                        <span>Speed</span>
+                        <span id="speed-value">1x</span>
+                    </label>
+                    <input type="range" class="slider" id="speed-slider" min="0.25" max="3" step="0.25" value="1">
+                </div>
+            </div>
+
+            <!-- Species List -->
+            <div class="panel-section" id="species-section">
+                <h2 class="panel-title">Species</h2>
+                <div id="species-list" class="species-list">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Event Log -->
+            <div class="panel-section" id="log-section">
+                <h2 class="panel-title">Events</h2>
+                <div id="event-log" class="event-log">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Creature Info (shown on click) -->
+        <div id="creature-info" class="creature-info hidden">
+            <button class="close-btn" id="close-creature-info">&times;</button>
+            <h3 id="creature-name">—</h3>
+            <div class="creature-details">
+                <div class="detail-row">
+                    <span class="detail-label">Species</span>
+                    <span class="detail-value" id="creature-species">—</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Generation</span>
+                    <span class="detail-value" id="creature-gen">—</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Energy</span>
+                    <div class="energy-bar-container">
+                        <div class="energy-bar" id="creature-energy-bar"></div>
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Diet</span>
+                    <span class="detail-value" id="creature-diet">—</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Age</span>
+                    <span class="detail-value" id="creature-age">—</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Children</span>
+                    <span class="detail-value" id="creature-children">—</span>
+                </div>
+            </div>
+            <canvas id="creature-dna-vis" width="200" height="40"></canvas>
+        </div>
+
+        <!-- Notification Toast -->
+        <div id="toast-container"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
