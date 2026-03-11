@@ -13,11 +13,11 @@ export const CONFIG = {
     // Ecosystem
     ECOSYSTEM: {
         INITIAL_CREATURES: 20,
-        INITIAL_FOOD: 40,
+        INITIAL_FOOD: 60,
         MAX_CREATURES: 150,
-        MAX_FOOD: 80,
-        FOOD_SPAWN_RATE: 0.02,        // chance per frame to spawn food
-        FOOD_ENERGY: 30,
+        MAX_FOOD: 120,
+        FOOD_SPAWN_RATE: 0.05,        // chance per frame to spawn food
+        FOOD_ENERGY: 35,
         FOOD_SIZE_MIN: 3,
         FOOD_SIZE_MAX: 7,
     },
@@ -28,14 +28,14 @@ export const CONFIG = {
         SIZE_MAX: 18,
         SPEED_MIN: 0.3,
         SPEED_MAX: 2.5,
-        INITIAL_ENERGY: 80,
-        MAX_ENERGY: 150,
-        ENERGY_DECAY: 0.04,            // energy lost per frame
-        ENERGY_MOVE_COST: 0.01,        // additional cost per unit moved
-        REPRODUCTION_THRESHOLD: 100,   // min energy to reproduce
-        REPRODUCTION_COST: 50,         // energy cost to reproduce
-        REPRODUCTION_COOLDOWN: 300,    // frames between reproductions
-        PERCEPTION_RADIUS: 120,        // how far they can "see"
+        INITIAL_ENERGY: 100,
+        MAX_ENERGY: 180,
+        ENERGY_DECAY: 0.018,           // energy lost per frame
+        ENERGY_MOVE_COST: 0.005,       // additional cost per unit moved
+        REPRODUCTION_THRESHOLD: 90,    // min energy to reproduce
+        REPRODUCTION_COST: 40,         // energy cost to reproduce
+        REPRODUCTION_COOLDOWN: 200,    // frames between reproductions
+        PERCEPTION_RADIUS: 140,        // how far they can "see"
         FLEE_RADIUS: 60,               // distance to start fleeing
         MAX_AGE: 3000,                 // frames before natural death
         WANDER_STRENGTH: 0.3,

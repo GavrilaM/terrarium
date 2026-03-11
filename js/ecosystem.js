@@ -291,7 +291,8 @@ export class Ecosystem {
         for (const c of this.creatures) {
             const dx = c.pos.x - x;
             const dy = c.pos.y - y;
-            if (dx * dx + dy * dy <= (c.traits.size + 5) * (c.traits.size + 5)) {
+            const hitRadius = c.traits.size + 15; // generous hit area for moving creatures
+            if (dx * dx + dy * dy <= hitRadius * hitRadius) {
                 return c;
             }
         }

@@ -144,9 +144,10 @@ class Terrarium {
 
             // FPS counter
             this.frameCount++;
-            this.fpsUpdateTime += timestamp - (this.lastTime - dt * 16.67);
             if (this.frameCount % 30 === 0) {
-                this.fps = Math.round(1000 / (dt * 16.67) * dt);
+                const elapsed = timestamp - (this.fpsUpdateTime || timestamp);
+                this.fps = elapsed > 0 ? Math.round(30000 / elapsed) : 60;
+                this.fpsUpdateTime = timestamp;
             }
 
             // --- UPDATE ---
