@@ -491,6 +491,94 @@ html, body {
     to { opacity: 1; transform: translateX(0); }
 }
 
+/* --- Marketplace Button --- */
+.marketplace-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-lg);
+    background: linear-gradient(135deg, rgba(255, 215, 64, 0.08), rgba(255, 152, 0, 0.12));
+    border: 1px solid rgba(255, 215, 64, 0.25);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: var(--transition-normal);
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    overflow: hidden;
+}
+
+.marketplace-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 215, 64, 0.05), rgba(255, 152, 0, 0.1));
+    opacity: 0;
+    transition: var(--transition-normal);
+}
+
+.marketplace-btn:hover {
+    border-color: var(--accent-amber);
+    box-shadow: 0 0 24px rgba(255, 215, 64, 0.2), 0 0 48px rgba(255, 152, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.marketplace-btn:hover::before {
+    opacity: 1;
+}
+
+.marketplace-btn:active {
+    transform: translateY(0);
+}
+
+.marketplace-icon {
+    font-size: 28px;
+    filter: drop-shadow(0 0 6px rgba(255, 215, 64, 0.4));
+    animation: marketplaceIconPulse 3s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+@keyframes marketplaceIconPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.marketplace-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    position: relative;
+    z-index: 1;
+}
+
+.marketplace-title {
+    font-size: 14px;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--accent-amber), #ffab40);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.marketplace-subtitle {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+}
+
+.marketplace-arrow {
+    font-size: 18px;
+    color: var(--accent-amber);
+    transition: var(--transition-fast);
+    position: relative;
+    z-index: 1;
+}
+
+.marketplace-btn:hover .marketplace-arrow {
+    transform: translateX(4px);
+}
+
 /* --- Creature Info Panel --- */
 .creature-info {
     position: fixed;

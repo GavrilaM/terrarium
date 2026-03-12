@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Terrarium Marketplace — Unlock new biomes for your digital ecosystem.">
+    <title>🎰 Terrarium — Marketplace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #020a18;
+            color: #e4f0ff;
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow-x: hidden;
+            padding: 40px 24px 60px;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(circle at 15% 25%, rgba(255, 215, 64, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 85% 75%, rgba(255, 152, 0, 0.04) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(0, 229, 255, 0.03) 0%, transparent 60%);
+            animation: bgPulse 8s ease-in-out infinite;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        @keyframes bgPulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        /* Top navigation */
+        .top-nav {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 48px;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(10, 30, 61, 0.6);
+            border: 1px solid rgba(80, 160, 255, 0.12);
+            border-radius: 10px;
+            color: #00e5ff;
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 250ms ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(15, 40, 80, 0.7);
+            border-color: #00e5ff;
+            box-shadow: 0 0 16px rgba(0, 229, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .back-btn .arrow { transition: transform 150ms ease; }
+        .back-btn:hover .arrow { transform: translateX(-3px); }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            color: rgba(228, 240, 255, 0.5);
+        }
+
+        .nav-logo span:first-child { font-size: 20px; }
+
+        /* Page header */
+        .page-header {
+            text-align: center;
+            margin-bottom: 48px;
+            animation: fadeInDown 0.5s ease;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .page-header h1 {
+            font-size: 42px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            background: linear-gradient(135deg, #ffd740, #ff9100, #ffd740);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 3s ease-in-out infinite;
+            margin-bottom: 12px;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { background-position: 0% center; }
+            50% { background-position: 200% center; }
+        }
+
+        .page-header p {
+            font-size: 15px;
+            color: #8baac8;
+            font-weight: 300;
+        }
+
+        /* Success banner */
+        .success-banner {
+            width: 100%;
+            max-width: 1000px;
+            padding: 16px 24px;
+            background: rgba(105, 240, 174, 0.08);
+            border: 1px solid rgba(105, 240, 174, 0.3);
+            border-radius: 12px;
+            color: #69f0ae;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            margin-bottom: 32px;
+            animation: fadeInDown 0.5s ease;
+            display: none;
+        }
+
+        .success-banner.show { display: block; }
+
+        /* Biome grid */
+        .biome-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            width: 100%;
+            max-width: 1000px;
+            animation: fadeInUp 0.6s ease;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Biome card */
+        .biome-card {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 300ms ease;
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            background: rgba(10, 30, 61, 0.4);
+        }
+
+        .biome-card:hover { transform: translateY(-6px); }
+        .biome-card:active { transform: translateY(-2px); }
+
+        /* Biome preview */
+        .biome-preview {
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .biome-preview-bg {
+            position: absolute;
+            inset: 0;
+            transition: transform 400ms ease;
+        }
+
+        .biome-card:hover .biome-preview-bg { transform: scale(1.08); }
+
+        .biome-preview::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 50%, rgba(2, 10, 24, 0.6) 100%);
+            z-index: 1;
+        }
+
+        .biome-emoji {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            font-size: 28px;
+            z-index: 2;
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
+        }
+
+        /* Sand biome */
+        .biome-sand .biome-preview-bg {
+            background: linear-gradient(145deg, #f4d35e, #d4a843, #c49032, #e8c547);
+        }
+        .biome-sand:hover {
+            border-color: rgba(244, 211, 94, 0.4);
+            box-shadow: 0 8px 40px rgba(244, 211, 94, 0.15), 0 0 60px rgba(244, 211, 94, 0.06);
+        }
+
+        /* Grass biome */
+        .biome-grass .biome-preview-bg {
+            background: linear-gradient(145deg, #4caf50, #2e7d32, #66bb6a, #388e3c);
+        }
+        .biome-grass:hover {
+            border-color: rgba(76, 175, 80, 0.4);
+            box-shadow: 0 8px 40px rgba(76, 175, 80, 0.15), 0 0 60px rgba(76, 175, 80, 0.06);
+        }
+
+        /* Sakura biome */
+        .biome-sakura .biome-preview-bg {
+            background: linear-gradient(145deg, #f48fb1, #e91e93, #f06292, #ec407a);
+        }
+        .biome-sakura:hover {
+            border-color: rgba(244, 143, 177, 0.4);
+            box-shadow: 0 8px 40px rgba(244, 143, 177, 0.15), 0 0 60px rgba(244, 143, 177, 0.06);
+        }
+
+        /* Biome info */
+        .biome-info { padding: 16px 18px 18px; }
+
+        .biome-name {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .biome-sand .biome-name { color: #f4d35e; }
+        .biome-grass .biome-name { color: #66bb6a; }
+        .biome-sakura .biome-name { color: #f48fb1; }
+
+        .biome-desc {
+            font-size: 12px;
+            color: #6a8aaa;
+            line-height: 1.5;
+            margin-bottom: 14px;
+        }
+
+        .biome-price-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .biome-price {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffd740;
+        }
+
+        .biome-unlock-btn {
+            padding: 7px 16px;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 200ms ease;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .biome-sand .biome-unlock-btn {
+            background: linear-gradient(135deg, #f4d35e, #d4a843);
+            color: #1a1200;
+        }
+        .biome-sand .biome-unlock-btn:hover { box-shadow: 0 4px 16px rgba(244, 211, 94, 0.35); }
+
+        .biome-grass .biome-unlock-btn {
+            background: linear-gradient(135deg, #66bb6a, #388e3c);
+            color: #0a2e0c;
+        }
+        .biome-grass .biome-unlock-btn:hover { box-shadow: 0 4px 16px rgba(76, 175, 80, 0.35); }
+
+        .biome-sakura .biome-unlock-btn {
+            background: linear-gradient(135deg, #f48fb1, #e91e93);
+            color: #2e0018;
+        }
+        .biome-sakura .biome-unlock-btn:hover { box-shadow: 0 4px 16px rgba(244, 143, 177, 0.35); }
+
+        .biome-unlock-btn:active { transform: scale(0.96); }
+
+        /* ===================== */
+        /* Payment Modal Overlay */
+        /* ===================== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 300ms ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            width: 100%;
+            max-width: 420px;
+            background: #0a1e3d;
+            border: 1px solid rgba(80, 160, 255, 0.15);
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+            transform: translateY(20px) scale(0.95);
+            transition: all 300ms ease;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0) scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #e4f0ff;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #8baac8;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 150ms ease;
+        }
+
+        .modal-close:hover {
+            color: #ff5252;
+            border-color: rgba(255, 82, 82, 0.3);
+        }
+
+        /* Biome preview in modal */
+        .modal-biome-preview {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+
+        .modal-biome-icon {
+            font-size: 40px;
+            flex-shrink: 0;
+        }
+
+        .modal-biome-info { flex: 1; }
+
+        .modal-biome-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e4f0ff;
+            margin-bottom: 2px;
+        }
+
+        .modal-biome-price {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            color: #ffd740;
+        }
+
+        /* Form */
+        .modal-form { display: flex; flex-direction: column; gap: 16px; }
+
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #8baac8;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(2, 10, 24, 0.8);
+            border: 1px solid rgba(80, 160, 255, 0.15);
+            border-radius: 10px;
+            color: #e4f0ff;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            outline: none;
+            transition: all 200ms ease;
+        }
+
+        .form-input:focus {
+            border-color: #00e5ff;
+            box-shadow: 0 0 12px rgba(0, 229, 255, 0.12);
+        }
+
+        .form-input::placeholder { color: #4a6a8a; }
+
+        .pay-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #ffd740, #ff9100);
+            color: #1a0e00;
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 250ms ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pay-btn:hover {
+            box-shadow: 0 6px 24px rgba(255, 215, 64, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .pay-btn:active { transform: translateY(0); }
+
+        .pay-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .pay-btn .spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(26, 14, 0, 0.3);
+            border-top-color: #1a0e00;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin: 0 auto;
+        }
+
+        .pay-btn.loading .btn-text { display: none; }
+        .pay-btn.loading .spinner { display: inline-block; }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .modal-footer {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 11px;
+            color: #4a6a8a;
+        }
+
+        .modal-footer img {
+            height: 14px;
+            opacity: 0.6;
+        }
+
+        .mayar-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            font-weight: 500;
+            color: #8baac8;
+        }
+
+        /* Error message */
+        .error-msg {
+            padding: 10px 14px;
+            background: rgba(255, 82, 82, 0.08);
+            border: 1px solid rgba(255, 82, 82, 0.2);
+            border-radius: 8px;
+            color: #ff5252;
+            font-size: 12px;
+            display: none;
+        }
+
+        .error-msg.show { display: block; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .biome-grid {
+                grid-template-columns: 1fr;
+                max-width: 400px;
+            }
+            .page-header h1 {
+                font-size: 28px;
+                letter-spacing: 1.5px;
+            }
+            .modal { margin: 16px; padding: 24px; }
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 24px 16px 40px; }
+            .page-header h1 { font-size: 22px; }
+            .top-nav { margin-bottom: 32px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <a href="index.html" class="back-btn">
+            <span class="arrow">←</span>
+            Back to Terrarium
+        </a>
+        <div class="nav-logo">
+            <span>🌿</span>
+            <span>Terrarium</span>
+        </div>
+    </nav>
+
+    <!-- Success Banner (shown after payment) -->
+    <div class="success-banner" id="success-banner">
+        ✅ Payment successful! Your biome is being unlocked...
+    </div>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>Unlock New Biome !!!!</h1>
+        <p>Choose a new environment for your creatures to thrive in</p>
+    </div>
+
+    <!-- Biome Selection Grid -->
+    <div class="biome-grid">
+
+        <!-- Sand Biome -->
+        <div class="biome-card biome-sand" id="biome-sand">
+            <div class="biome-preview">
+                <div class="biome-preview-bg"></div>
+                <span class="biome-emoji">🏜️</span>
+            </div>
+            <div class="biome-info">
+                <div class="biome-name">Sand Biome</div>
+                <div class="biome-desc">Scorching deserts with heat-resistant species and sandy dunes</div>
+                <div class="biome-price-row">
+                    <span class="biome-price">Rp 15.000</span>
+                    <button class="biome-unlock-btn" data-biome="sand" data-name="Sand Biome" data-price="15000" data-emoji="🏜️">Unlock</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grass Biome -->
+        <div class="biome-card biome-grass" id="biome-grass">
+            <div class="biome-preview">
+                <div class="biome-preview-bg"></div>
+                <span class="biome-emoji">🌿</span>
+            </div>
+            <div class="biome-info">
+                <div class="biome-name">Grass Biome</div>
+                <div class="biome-desc">Lush green plains with abundant plant life and thriving herbivores</div>
+                <div class="biome-price-row">
+                    <span class="biome-price">Rp 15.000</span>
+                    <button class="biome-unlock-btn" data-biome="grass" data-name="Grass Biome" data-price="15000" data-emoji="🌿">Unlock</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sakura Biome -->
+        <div class="biome-card biome-sakura" id="biome-sakura">
+            <div class="biome-preview">
+                <div class="biome-preview-bg"></div>
+                <span class="biome-emoji">🌸</span>
+            </div>
+            <div class="biome-info">
+                <div class="biome-name">Sakura Biome</div>
+                <div class="biome-desc">Cherry blossom gardens with gentle breezes and graceful creatures</div>
+                <div class="biome-price-row">
+                    <span class="biome-price">Rp 15.000</span>
+                    <button class="biome-unlock-btn" data-biome="sakura" data-name="Sakura Biome" data-price="15000" data-emoji="🌸">Unlock</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="modal-overlay" id="payment-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Unlock Biome</h2>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+
+            <!-- Biome Preview -->
+            <div class="modal-biome-preview">
+                <span class="modal-biome-icon" id="modal-biome-icon">🏜️</span>
+                <div class="modal-biome-info">
+                    <div class="modal-biome-name" id="modal-biome-name">Sand Biome</div>
+                    <div class="modal-biome-price" id="modal-biome-price">Rp 15.000</div>
+                </div>
+            </div>
+
+            <!-- Payment Form -->
+            <form class="modal-form" id="payment-form">
+                <div class="form-group">
+                    <label class="form-label" for="email-input">Email Address</label>
+                    <input type="email" class="form-input" id="email-input" placeholder="you@example.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="phone-input">Phone Number</label>
+                    <input type="tel" class="form-input" id="phone-input" placeholder="08123456789" required minlength="10">
+                </div>
+
+                <div class="error-msg" id="error-msg"></div>
+
+                <button type="submit" class="pay-btn" id="pay-btn">
+                    <span class="btn-text">💳 Pay with Mayar</span>
+                    <span class="spinner"></span>
+                </button>
+            </form>
+
+            <div class="modal-footer">
+                🔒 Secure payment powered by <span class="mayar-badge">Mayar</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script type="module">
+        import { createBiomePayment } from './js/mayar.js';
+
+        // --- DOM Elements ---
+        const modal = document.getElementById('payment-modal');
+        const modalClose = document.getElementById('modal-close');
+        const paymentForm = document.getElementById('payment-form');
+        const payBtn = document.getElementById('pay-btn');
+        const emailInput = document.getElementById('email-input');
+        const phoneInput = document.getElementById('phone-input');
+        const errorMsg = document.getElementById('error-msg');
+        const successBanner = document.getElementById('success-banner');
+
+        // Modal biome display
+        const modalBiomeIcon = document.getElementById('modal-biome-icon');
+        const modalBiomeName = document.getElementById('modal-biome-name');
+        const modalBiomePrice = document.getElementById('modal-biome-price');
+
+        // Current selected biome for payment
+        let selectedBiome = null;
+
+        // --- Check for payment success redirect ---
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('payment') === 'success') {
+            successBanner.classList.add('show');
+            const biomeKey = urlParams.get('biome');
+            if (biomeKey) {
+                // Store unlocked biome in localStorage
+                const unlocked = JSON.parse(localStorage.getItem('terrarium_unlocked_biomes') || '[]');
+                if (!unlocked.includes(biomeKey)) {
+                    unlocked.push(biomeKey);
+                    localStorage.setItem('terrarium_unlocked_biomes', JSON.stringify(unlocked));
+                }
+            }
+            // Clean URL
+            window.history.replaceState({}, '', 'marketplace.html');
+        }
+
+        // --- Open payment modal ---
+        document.querySelectorAll('.biome-unlock-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectedBiome = btn.dataset.biome;
+
+                // Update modal content
+                modalBiomeIcon.textContent = btn.dataset.emoji;
+                modalBiomeName.textContent = btn.dataset.name;
+                modalBiomePrice.textContent = `Rp ${Number(btn.dataset.price).toLocaleString('id-ID')}`;
+
+                // Reset form
+                emailInput.value = '';
+                phoneInput.value = '';
+                errorMsg.classList.remove('show');
+                payBtn.classList.remove('loading');
+                payBtn.disabled = false;
+
+                // Show modal
+                modal.classList.add('active');
+                setTimeout(() => emailInput.focus(), 300);
+            });
+        });
+
+        // --- Close modal ---
+        function closeModal() {
+            modal.classList.remove('active');
+            selectedBiome = null;
+        }
+
+        modalClose.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // --- Payment form submission ---
+        paymentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = emailInput.value.trim();
+            const mobile = phoneInput.value.trim();
+            if (!email || !mobile || !selectedBiome) return;
+
+            if (mobile.length < 10) {
+                showError('Phone number must be at least 10 digits.');
+                return;
+            }
+
+            // Show loading state
+            payBtn.classList.add('loading');
+            payBtn.disabled = true;
+            errorMsg.classList.remove('show');
+
+            try {
+                const result = await createBiomePayment(selectedBiome, email, mobile);
+
+                if (result && result.data && result.data.link) {
+                    // Redirect to Mayar payment page
+                    window.location.href = result.data.link;
+                } else if (result && result.data && result.data.paymentUrl) {
+                    window.location.href = result.data.paymentUrl;
+                } else if (result && result.statusCode === 200 && result.data) {
+                    // Try to find payment URL in response
+                    const payUrl = result.data.link || result.data.paymentUrl || result.data.url;
+                    if (payUrl) {
+                        window.location.href = payUrl;
+                    } else {
+                        showError('Payment link received. Check console for details.');
+                        console.log('Mayar full response:', JSON.stringify(result, null, 2));
+                    }
+                } else {
+                    const errMessage = result?.message || result?.error || 'Failed to create payment. Please try again.';
+                    showError(errMessage);
+                    console.log('Mayar full response:', JSON.stringify(result, null, 2));
+                }
+            } catch (err) {
+                showError('Network error. Please check your connection and try again.');
+                console.error('Payment error:', err);
+            } finally {
+                payBtn.classList.remove('loading');
+                payBtn.disabled = false;
+            }
+        });
+
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.classList.add('show');
+        }
+    </script>
+
+</body>
+</html>
