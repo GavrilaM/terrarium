@@ -34,6 +34,8 @@ export class UIManager {
             creatureDiet: document.getElementById('creature-diet'),
             creatureAge: document.getElementById('creature-age'),
             creatureChildren: document.getElementById('creature-children'),
+            creatureTier: document.getElementById('creature-tier'),
+            creatureMutations: document.getElementById('creature-mutations'),
             creatureDnaVis: document.getElementById('creature-dna-vis'),
             toastContainer: document.getElementById('toast-container'),
         };
@@ -183,6 +185,31 @@ export class UIManager {
         this.els.creatureDiet.textContent = c.getDietLabel();
         this.els.creatureAge.textContent = Math.floor(c.age / 60) + 's';
         this.els.creatureChildren.textContent = c.children;
+
+        // ★ Evolution details
+        const tierDef = import('./mutations.js').then(m => {
+            const def = m.getTierDef(c.evolutionTier || 0);
+            if (this.els.creatureTier) {
+                this.els.creatureTier.innerHTML = `${def.emoji} ${def.name} <span style="font-size:0.8em;color:var(--text-muted)">(T${def.tier})</span>`;
+            }
+        });
+        
+        if (this.els.creatureMutations) {
+            this.els.creatureMutations.innerHTML = '';
+            const muts = c.mutations || [];
+            if (muts.length === 0) {
+                this.els.creatureMutations.innerHTML = '<div class="mutation-item" style="color:var(--text-muted);font-size:0.85rem">No mutations yet</div>';
+            } else {
+                for (const m of muts) {
+                    const el = document.createElement('div');
+                    el.className = 'mutation-item';
+                    el.title = m.description;
+                    el.innerHTML = `<span class="mut-emoji">${m.emoji}</span><span class="mut-name">${m.name}</span>`;
+                    this.els.creatureMutations.appendChild(el);
+                }
+            }
+        }
+
         this._drawDNA(c);
     }
 

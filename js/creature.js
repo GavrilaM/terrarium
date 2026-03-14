@@ -6,6 +6,7 @@
 import { CONFIG } from './config.js';
 import { expressDNA, getDietLabel, crossover, mutate } from './genetics.js';
 import { getSpeciesTypeFromDNA, generateSpeciesDNA, getRandomSpeciesType } from './species.js';
+import { checkTierUp, rollMutation, applyMutationStats, getTierDef } from './mutations.js';
 
 const { CREATURE, COMBAT, WORLD, ECOSYSTEM } = CONFIG;
 
@@ -93,13 +94,47 @@ export class Creature {
         this.causeOfDeath = null;
         this.killedBy = null;
 
+        // ★ MUTATIONS & EVOLUTION
+        this.mutations = [];
+        this.evolutionTier = 0;
+        this.tierUpChecked = false;
+        this.venomTimer = 0;        // poison DoT from venom attack
+        this.venomSource = null;
+
+        // Mutation stat multipliers (set by applyMutationStats)
+        this.mutSpeedMult = 1;
+        this.mutHpMult = 1;
+        this.mutAttackMult = 1;
+        this.mutPerceptionMult = 1;
+        this.mutFullnessMult = 1;
+        this.mutHpRegenMult = 1;
+        this.mutStealthMult = 1;
+        this.mutCounterReduction = 0;
+        this.mutDashSpeed = 0;
+        this.mutDashCost = 0;
+        this.mutVenomDamage = 0;
+        this.mutVenomDuration = 0;
+        this.mutPackRadius = 0;
+        this.mutPassiveEatRadius = 1;
+        this.mutMeatDetectMult = 1;
+        this.mutDeathSpores = 0;
+        this.mutDetectCamo = false;
+        this.mutHealAura = 0;
+        this.mutHealAuraRadius = 0;
+        this.mutFleeBoost = 1;
+
+        // Apply HP multiplier from initial mutations (if inherited)
+        this.maxHp = CREATURE.MAX_HP * this.mutHpMult;
+        this.hp = this.maxHp;
+
         // Visuals
         this.glowPhase = Math.random() * Math.PI * 2;
         this.trail = [];
         this.wanderAngle = Math.random() * Math.PI * 2;
         this.pulsePhase = Math.random() * Math.PI * 2;
         this.eatTimer = 0;
-        this.hitFlash = 0; // visual flash when taking damage
+        this.hitFlash = 0;
+        this.tierUpFlash = 0;  // visual flash when tier up
     }
 
     // ---- Computed Properties ----
@@ -115,8 +150,9 @@ export class Creature {
      * Effective speed — reduced when out of energy
      */
     get effectiveSpeed() {
-        if (this.energy <= 0) return this.traits.speed * CREATURE.ENERGY_LOW_SPEED_MULT;
-        return this.traits.speed;
+        const base = this.traits.speed * this.mutSpeedMult;
+        if (this.energy <= 0) return base * CREATURE.ENERGY_LOW_SPEED_MULT;
+        return base;
     }
 
     /**
@@ -133,6 +169,12 @@ export class Creature {
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
         if (this.eatTimer > 0) this.eatTimer -= dt;
         if (this.hitFlash > 0) this.hitFlash -= dt;
+        if (this.tierUpFlash > 0) this.tierUpFlash -= dt;
+        if (this.venomTimer > 0) {
+            this.hp -= this.venomSource?.mutVenomDamage || 0.3;
+            this.venomTimer -= dt;
+            this.hitFlash = 2;
+        }
 
         // ★ Fullness decays (getting hungry)
         const hungerRate = this.speciesType.diet === 'carnivore' ? 0.6 : 1.0;
@@ -143,9 +185,9 @@ export class Creature {
         this.energy -= (CREATURE.ENERGY_DECAY + sizeCost) * dt;
         this.energy = Math.max(0, this.energy);
 
-        // ★ HP regen when well-fed and has energy
+        // ★ HP regen when well-fed and has energy (boosted by mutations)
         if (this.hp < this.maxHp && this.energy > CREATURE.MAX_ENERGY * 0.5 && this.fullness > 30) {
-            this.hp = Math.min(this.maxHp, this.hp + CREATURE.HP_REGEN * dt);
+            this.hp = Math.min(this.maxHp, this.hp + CREATURE.HP_REGEN * this.mutHpRegenMult * dt);
         }
 
         // ★ Starvation damage — when fullness = 0 for too long, HP slowly drops
@@ -169,6 +211,22 @@ export class Creature {
 
         // Passive eating (walk over food)
         if (this.canEat && !this.isFull) this._passiveEat(ecosystem);
+
+        // ★ EVOLUTION TIER CHECK (every ~200 frames)
+        if (Math.floor(this.age) % 200 === 0 && !this.tierUpChecked) {
+            this._checkEvolution(ecosystem);
+            this.tierUpChecked = true;
+        }
+        if (Math.floor(this.age) % 200 !== 0) this.tierUpChecked = false;
+
+        // ★ Heal Aura mutation effect
+        if (this.mutHealAura > 0) {
+            const allies = ecosystem.getCreaturesNear(this.pos, this.mutHealAuraRadius, this.id)
+                .filter(c => c.speciesType.id === this.speciesType.id && c.hp < c.maxHp);
+            for (const ally of allies) {
+                ally.hp = Math.min(ally.maxHp, ally.hp + this.mutHealAura * dt);
+            }
+        }
 
         // ★ Overcrowding stress
         this._checkOvercrowding(ecosystem);
@@ -209,6 +267,34 @@ export class Creature {
             const excess = nearby.length - ECOSYSTEM.OVERCROWD_THRESHOLD;
             this.energy = Math.max(0, this.energy - ECOSYSTEM.OVERCROWD_ENERGY_DRAIN * excess);
             this.hp -= ECOSYSTEM.OVERCROWD_HP_DRAIN * excess;
+        }
+    }
+
+    /**
+     * Check evolution tier advancement + roll mutations
+     */
+    _checkEvolution(ecosystem) {
+        const nextTier = checkTierUp(this);
+        if (nextTier) {
+            this.evolutionTier = nextTier.tier;
+            this.tierUpFlash = 30; // visual celebration
+
+            // Roll a new mutation on tier-up!
+            const newMut = rollMutation(this);
+            if (newMut) {
+                this.mutations.push(newMut);
+                applyMutationStats(this);
+                this.maxHp = CREATURE.MAX_HP * this.mutHpMult;
+                this.hp = Math.min(this.hp, this.maxHp);
+
+                ecosystem._addEvent?.('evolution',
+                    `${this.speciesType?.emoji || '🧬'} ${this.speciesName} #${this.id} evolved to ${nextTier.emoji} ${nextTier.name}! Got: ${newMut.emoji} ${newMut.name}`
+                );
+            } else {
+                ecosystem._addEvent?.('evolution',
+                    `${this.speciesType?.emoji || '🧬'} ${this.speciesName} #${this.id} evolved to ${nextTier.emoji} ${nextTier.name}!`
+                );
+            }
         }
     }
 
@@ -569,8 +655,6 @@ export class Creature {
     // ---- Reproduction ----
 
     reproduce(mate) {
-        // ★ Dynamic reproduction cost based on population
-        const popCost = ECOSYSTEM.REPRO_BASE_COST + (this._getPopEstimate ? 0 : 0);
         if (this.energy < CREATURE.REPRODUCTION_THRESHOLD || mate.energy < CREATURE.REPRODUCTION_THRESHOLD * 0.8) return null;
 
         this.energy -= CREATURE.REPRODUCTION_COST;
@@ -585,7 +669,33 @@ export class Creature {
         this.children++;
         mate.children++;
 
-        return new Creature(this.pos.x + offset.x, this.pos.y + offset.y, childDNA, getSpeciesTypeFromDNA(childDNA), childGen);
+        const child = new Creature(this.pos.x + offset.x, this.pos.y + offset.y, childDNA, getSpeciesTypeFromDNA(childDNA), childGen);
+
+        // ★ Inherit some mutations from parents (50% chance each)
+        const parentMuts = [...this.mutations, ...mate.mutations];
+        const inherited = new Set();
+        for (const m of parentMuts) {
+            if (!inherited.has(m.id) && Math.random() < 0.5) {
+                child.mutations.push(m);
+                inherited.add(m.id);
+            }
+        }
+        if (child.mutations.length > 0) applyMutationStats(child);
+        child.maxHp = CREATURE.MAX_HP * child.mutHpMult;
+        child.hp = child.maxHp;
+
+        // Child might get a new random mutation on birth (10% chance)
+        if (Math.random() < 0.1 && child.mutations.length < (getTierDef(child.evolutionTier)?.mutationSlots || 0)) {
+            const newMut = rollMutation(child);
+            if (newMut) {
+                child.mutations.push(newMut);
+                applyMutationStats(child);
+                child.maxHp = CREATURE.MAX_HP * child.mutHpMult;
+                child.hp = child.maxHp;
+            }
+        }
+
+        return child;
     }
 
     // ---- Helpers ----

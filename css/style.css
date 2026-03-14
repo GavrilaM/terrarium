@@ -197,6 +197,40 @@ html, body {
 }
 
 /* Active Event Banner */
+/* Mutations UI */
+.mutations-section {
+    margin-top: var(--space-md);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--surface-border);
+}
+
+.mutations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.mutation-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    background: rgba(4, 16, 36, 0.4);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    border: 1px solid rgba(80, 160, 255, 0.1);
+}
+
+.mut-emoji {
+    font-size: 13px;
+}
+
+.mut-name {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
 .active-event-banner {
     position: fixed;
     top: var(--topbar-height);
