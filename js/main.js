@@ -245,6 +245,14 @@ class Terrarium {
             // 4. Restore camera transform
             this.camera.restoreTransform(this.renderer.ctx);
 
+            // 5. Minimap (screen space — stays fixed)
+            this.renderer.drawMinimap(
+                this.ecosystem.creatures,
+                this.ecosystem.food,
+                this.camera,
+                this.ecosystem.hazards
+            );
+
             // --- UI UPDATE (throttled) ---
             if (this.frameCount % 10 === 0) {
                 this.ui.update(this.fps);
