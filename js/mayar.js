@@ -71,3 +71,39 @@ export async function createBiomePayment(biomeKey, email, mobile) {
         return { error: error.message };
     }
 }
+
+/**
+ * Create a payment link for a gacha pull
+ * @param {string} tierKey - Gacha tier (common, rare, legendary)
+ * @param {string} tierName - Display name
+ * @param {number} price - Amount in IDR
+ * @param {string} email - Customer email
+ * @param {string} mobile - Customer phone
+ * @returns {Promise<Object>} Response with payment link
+ */
+export async function createGachaPayment(tierKey, tierName, price, email, mobile) {
+    try {
+        const response = await fetch(`${MAYAR_CONFIG.BASE_URL}/payment/create`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${MAYAR_CONFIG.API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: `Gacha Pull: ${tierName}`,
+                amount: price,
+                email: email,
+                mobile: mobile,
+                description: `Terrarium Gacha — ${tierName} tier species pull`,
+                redirectUrl: window.location.origin + '/marketplace.html?payment=success&gacha=' + tierKey,
+            }),
+        });
+
+        const data = await response.json();
+        console.log('Mayar Gacha API response:', data);
+        return data;
+    } catch (error) {
+        console.error('Mayar Gacha API error:', error);
+        return { error: error.message };
+    }
+}

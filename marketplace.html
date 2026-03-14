@@ -533,13 +533,277 @@
 
         .error-msg.show { display: block; }
 
+        /* ===================== */
+        /* Gacha Section         */
+        /* ===================== */
+        .section-divider {
+            width: 100%;
+            max-width: 1000px;
+            margin: 56px 0 48px;
+            text-align: center;
+        }
+
+        .section-divider h2 {
+            font-size: 36px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            background: linear-gradient(135deg, #e040fb, #7c4dff, #e040fb);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 3s ease-in-out infinite;
+            margin-bottom: 8px;
+        }
+
+        .section-divider p {
+            font-size: 14px;
+            color: #6a8aaa;
+        }
+
+        .gacha-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            width: 100%;
+            max-width: 1000px;
+            animation: fadeInUp 0.7s ease;
+        }
+
+        .gacha-card {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 300ms ease;
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            background: rgba(10, 30, 61, 0.4);
+            text-align: center;
+            padding: 28px 20px;
+        }
+
+        .gacha-card:hover { transform: translateY(-6px); }
+
+        .gacha-card .gacha-orb {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            position: relative;
+            transition: transform 300ms ease;
+        }
+
+        .gacha-card:hover .gacha-orb { transform: scale(1.1) rotate(5deg); }
+
+        .gacha-card .gacha-tier-name {
+            font-size: 22px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 6px;
+        }
+
+        .gacha-card .gacha-tier-desc {
+            font-size: 12px;
+            color: #6a8aaa;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .gacha-card .gacha-species-list {
+            font-size: 11px;
+            color: #4a6a8a;
+            margin-bottom: 16px;
+            line-height: 2;
+        }
+
+        .gacha-card .gacha-price {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 14px;
+        }
+
+        .gacha-pull-btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 200ms ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .gacha-pull-btn:hover { transform: translateY(-2px); }
+        .gacha-pull-btn:active { transform: translateY(0); }
+
+        /* Common tier */
+        .gacha-common .gacha-orb {
+            background: radial-gradient(circle, #bdbdbd, #757575);
+            box-shadow: 0 4px 20px rgba(158, 158, 158, 0.3);
+        }
+        .gacha-common:hover {
+            border-color: rgba(158, 158, 158, 0.4);
+            box-shadow: 0 8px 40px rgba(158, 158, 158, 0.12);
+        }
+        .gacha-common .gacha-tier-name { color: #bdbdbd; }
+        .gacha-common .gacha-price { color: #bdbdbd; }
+        .gacha-common .gacha-pull-btn {
+            background: linear-gradient(135deg, #bdbdbd, #757575);
+            color: #1a1a1a;
+        }
+        .gacha-common .gacha-pull-btn:hover { box-shadow: 0 4px 16px rgba(158, 158, 158, 0.35); }
+
+        /* Rare tier */
+        .gacha-rare .gacha-orb {
+            background: radial-gradient(circle, #64b5f6, #1565c0);
+            box-shadow: 0 4px 20px rgba(68, 138, 255, 0.3);
+        }
+        .gacha-rare:hover {
+            border-color: rgba(68, 138, 255, 0.4);
+            box-shadow: 0 8px 40px rgba(68, 138, 255, 0.12);
+        }
+        .gacha-rare .gacha-tier-name { color: #64b5f6; }
+        .gacha-rare .gacha-price { color: #64b5f6; }
+        .gacha-rare .gacha-pull-btn {
+            background: linear-gradient(135deg, #64b5f6, #1565c0);
+            color: #001030;
+        }
+        .gacha-rare .gacha-pull-btn:hover { box-shadow: 0 4px 16px rgba(68, 138, 255, 0.35); }
+
+        /* Legendary tier */
+        .gacha-legendary .gacha-orb {
+            background: radial-gradient(circle, #ffd740, #ff8f00);
+            box-shadow: 0 4px 20px rgba(255, 215, 64, 0.4);
+            animation: legendaryPulse 2s ease-in-out infinite;
+        }
+        @keyframes legendaryPulse {
+            0%, 100% { box-shadow: 0 4px 20px rgba(255, 215, 64, 0.4); }
+            50% { box-shadow: 0 4px 30px rgba(255, 215, 64, 0.7), 0 0 60px rgba(255, 215, 64, 0.2); }
+        }
+        .gacha-legendary:hover {
+            border-color: rgba(255, 215, 64, 0.5);
+            box-shadow: 0 8px 40px rgba(255, 215, 64, 0.15);
+        }
+        .gacha-legendary .gacha-tier-name { color: #ffd740; }
+        .gacha-legendary .gacha-price { color: #ffd740; }
+        .gacha-legendary .gacha-pull-btn {
+            background: linear-gradient(135deg, #ffd740, #ff8f00);
+            color: #1a0e00;
+        }
+        .gacha-legendary .gacha-pull-btn:hover { box-shadow: 0 4px 16px rgba(255, 215, 64, 0.45); }
+
+        /* ===================== */
+        /* Gacha Reveal Modal    */
+        /* ===================== */
+        .reveal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 400ms ease;
+        }
+
+        .reveal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .reveal-card {
+            text-align: center;
+            transform: scale(0.3) rotateY(180deg);
+            transition: transform 800ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .reveal-overlay.active .reveal-card {
+            transform: scale(1) rotateY(0deg);
+        }
+
+        .reveal-emoji {
+            font-size: 100px;
+            display: block;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 4px 20px rgba(0,0,0,0.5));
+            animation: revealBounce 0.5s ease 0.8s both;
+        }
+
+        @keyframes revealBounce {
+            0% { transform: scale(0.5); }
+            60% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .reveal-tier-badge {
+            display: inline-block;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+        }
+
+        .reveal-tier-badge.common { background: #757575; color: #fff; }
+        .reveal-tier-badge.rare { background: #1565c0; color: #fff; }
+        .reveal-tier-badge.legendary { background: linear-gradient(135deg, #ffd740, #ff8f00); color: #1a0e00; }
+
+        .reveal-name {
+            font-size: 32px;
+            font-weight: 800;
+            color: #e4f0ff;
+            margin-bottom: 8px;
+        }
+
+        .reveal-desc {
+            font-size: 14px;
+            color: #8baac8;
+            max-width: 320px;
+            margin: 0 auto 24px;
+            line-height: 1.6;
+        }
+
+        .reveal-close-btn {
+            padding: 12px 32px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #00e5ff, #0091ea);
+            color: #001830;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 200ms ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .reveal-close-btn:hover {
+            box-shadow: 0 4px 20px rgba(0, 229, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
-            .biome-grid {
+            .biome-grid, .gacha-grid {
                 grid-template-columns: 1fr;
                 max-width: 400px;
             }
-            .page-header h1 {
+            .page-header h1, .section-divider h2 {
                 font-size: 28px;
                 letter-spacing: 1.5px;
             }
@@ -549,6 +813,7 @@
         @media (max-width: 480px) {
             body { padding: 24px 16px 40px; }
             .page-header h1 { font-size: 22px; }
+            .section-divider h2 { font-size: 22px; }
             .top-nav { margin-bottom: 32px; }
         }
     </style>
@@ -561,9 +826,14 @@
             <span class="arrow">←</span>
             Back to Terrarium
         </a>
-        <div class="nav-logo">
-            <span>🌿</span>
-            <span>Terrarium</span>
+        <div style="display:flex; align-items:center; gap:16px;">
+            <a href="collection.html" class="back-btn" style="color:#e040fb; border-color:rgba(224,64,251,0.2);">
+                📚 All Species
+            </a>
+            <div class="nav-logo">
+                <span>🌿</span>
+                <span>Terrarium</span>
+            </div>
         </div>
     </nav>
 
@@ -631,6 +901,65 @@
 
     </div>
 
+    <!-- =================== -->
+    <!-- GACHA SECTION        -->
+    <!-- =================== -->
+    <div class="section-divider">
+        <h2>🎰 Species Gacha</h2>
+        <p>Pull for rare and legendary species to add to your terrarium</p>
+    </div>
+
+    <div class="gacha-grid">
+
+        <!-- Common Tier -->
+        <div class="gacha-card gacha-common">
+            <div class="gacha-orb">⚪</div>
+            <div class="gacha-tier-name">Common</div>
+            <div class="gacha-tier-desc">Basic species with useful survival traits</div>
+            <div class="gacha-species-list">
+                🪨 Dustmite &bull; 🍄 Shroomba &bull; ✨ Glimmer
+            </div>
+            <div class="gacha-price">Rp 5.000</div>
+            <button class="gacha-pull-btn" data-tier="common" data-name="Common" data-price="5000">🎲 Pull</button>
+        </div>
+
+        <!-- Rare Tier -->
+        <div class="gacha-card gacha-rare">
+            <div class="gacha-orb">🔵</div>
+            <div class="gacha-tier-name">Rare</div>
+            <div class="gacha-tier-desc">Powerful species with special abilities</div>
+            <div class="gacha-species-list">
+                🐍 Venomaw &bull; 💎 Crystalis &bull; 🌊 Tidecaller
+            </div>
+            <div class="gacha-price">Rp 15.000</div>
+            <button class="gacha-pull-btn" data-tier="rare" data-name="Rare" data-price="15000">🎲 Pull</button>
+        </div>
+
+        <!-- Legendary Tier -->
+        <div class="gacha-card gacha-legendary">
+            <div class="gacha-orb">🟡</div>
+            <div class="gacha-tier-name">Legendary</div>
+            <div class="gacha-tier-desc">Mythical creatures with game-changing powers</div>
+            <div class="gacha-species-list">
+                🔥 Phoenixis &bull; 🐉 Leviathan &bull; 🌸 Sakurabane
+            </div>
+            <div class="gacha-price">Rp 30.000</div>
+            <button class="gacha-pull-btn" data-tier="legendary" data-name="Legendary" data-price="30000">🎲 Pull</button>
+        </div>
+
+    </div>
+
+    <!-- Gacha Reveal Modal -->
+    <div class="reveal-overlay" id="reveal-overlay">
+        <div class="reveal-card">
+            <span class="reveal-emoji" id="reveal-emoji">🔥</span>
+            <span class="reveal-tier-badge" id="reveal-tier-badge">Legendary</span>
+            <div class="reveal-name" id="reveal-name">Phoenixis</div>
+            <div class="reveal-desc" id="reveal-desc">Revives once after death — the immortal predator</div>
+            <button class="reveal-close-btn" id="reveal-close">Awesome! 🎉</button>
+        </div>
+    </div>
+
     <!-- Payment Modal -->
     <div class="modal-overlay" id="payment-modal">
         <div class="modal">
@@ -676,7 +1005,8 @@
 
     <!-- JavaScript -->
     <script type="module">
-        import { createBiomePayment } from './js/mayar.js';
+        import { createBiomePayment, createGachaPayment } from './js/mayar.js';
+        import { gachaPull, addToCollection, GACHA_SPECIES } from './js/gacha.js';
 
         // --- DOM Elements ---
         const modal = document.getElementById('payment-modal');
@@ -688,59 +1018,111 @@
         const errorMsg = document.getElementById('error-msg');
         const successBanner = document.getElementById('success-banner');
 
-        // Modal biome display
+        // Modal display elements
         const modalBiomeIcon = document.getElementById('modal-biome-icon');
         const modalBiomeName = document.getElementById('modal-biome-name');
         const modalBiomePrice = document.getElementById('modal-biome-price');
+        const modalTitle = document.querySelector('.modal-title');
 
-        // Current selected biome for payment
-        let selectedBiome = null;
+        // Reveal elements
+        const revealOverlay = document.getElementById('reveal-overlay');
+        const revealEmoji = document.getElementById('reveal-emoji');
+        const revealTierBadge = document.getElementById('reveal-tier-badge');
+        const revealName = document.getElementById('reveal-name');
+        const revealDesc = document.getElementById('reveal-desc');
+        const revealClose = document.getElementById('reveal-close');
+
+        // Current payment context
+        let paymentContext = { type: null, key: null };
 
         // --- Check for payment success redirect ---
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('payment') === 'success') {
-            successBanner.classList.add('show');
+        const pendingGacha = localStorage.getItem('terrarium_pending_gacha');
+
+        // Check URL params OR localStorage for pending gacha
+        if (urlParams.get('payment') === 'success' || pendingGacha) {
             const biomeKey = urlParams.get('biome');
+            const gachaTier = urlParams.get('gacha') || pendingGacha;
+
             if (biomeKey) {
-                // Store unlocked biome in localStorage
+                successBanner.textContent = '✅ Payment successful! Your biome is being unlocked...';
+                successBanner.classList.add('show');
                 const unlocked = JSON.parse(localStorage.getItem('terrarium_unlocked_biomes') || '[]');
                 if (!unlocked.includes(biomeKey)) {
                     unlocked.push(biomeKey);
                     localStorage.setItem('terrarium_unlocked_biomes', JSON.stringify(unlocked));
                 }
             }
-            // Clean URL
+
+            if (gachaTier) {
+                // Clear the pending gacha
+                localStorage.removeItem('terrarium_pending_gacha');
+                // Perform the gacha pull!
+                const species = gachaPull(gachaTier);
+                if (species) {
+                    addToCollection(species.id);
+                    // Show reveal animation
+                    setTimeout(() => showReveal(species), 500);
+                }
+            }
+
             window.history.replaceState({}, '', 'marketplace.html');
         }
 
-        // --- Open payment modal ---
+        // --- Reveal animation ---
+        function showReveal(species) {
+            revealEmoji.textContent = species.emoji;
+            revealName.textContent = species.name;
+            revealDesc.textContent = species.description;
+            revealTierBadge.textContent = species.tier.toUpperCase();
+            revealTierBadge.className = 'reveal-tier-badge ' + species.tier;
+            revealOverlay.classList.add('active');
+        }
+
+        revealClose.addEventListener('click', () => {
+            revealOverlay.classList.remove('active');
+        });
+
+        // --- Open payment modal (biome) ---
         document.querySelectorAll('.biome-unlock-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                selectedBiome = btn.dataset.biome;
-
-                // Update modal content
+                paymentContext = { type: 'biome', key: btn.dataset.biome };
+                modalTitle.textContent = 'Unlock Biome';
                 modalBiomeIcon.textContent = btn.dataset.emoji;
                 modalBiomeName.textContent = btn.dataset.name;
                 modalBiomePrice.textContent = `Rp ${Number(btn.dataset.price).toLocaleString('id-ID')}`;
-
-                // Reset form
-                emailInput.value = '';
-                phoneInput.value = '';
-                errorMsg.classList.remove('show');
-                payBtn.classList.remove('loading');
-                payBtn.disabled = false;
-
-                // Show modal
-                modal.classList.add('active');
-                setTimeout(() => emailInput.focus(), 300);
+                openModal();
             });
         });
+
+        // --- Open payment modal (gacha) ---
+        document.querySelectorAll('.gacha-pull-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                paymentContext = { type: 'gacha', key: btn.dataset.tier, name: btn.dataset.name, price: Number(btn.dataset.price) };
+                modalTitle.textContent = 'Gacha Pull';
+                modalBiomeIcon.textContent = '🎰';
+                modalBiomeName.textContent = `${btn.dataset.name} Tier Pull`;
+                modalBiomePrice.textContent = `Rp ${Number(btn.dataset.price).toLocaleString('id-ID')}`;
+                openModal();
+            });
+        });
+
+        function openModal() {
+            emailInput.value = '';
+            phoneInput.value = '';
+            errorMsg.classList.remove('show');
+            payBtn.classList.remove('loading');
+            payBtn.disabled = false;
+            modal.classList.add('active');
+            setTimeout(() => emailInput.focus(), 300);
+        }
 
         // --- Close modal ---
         function closeModal() {
             modal.classList.remove('active');
-            selectedBiome = null;
+            paymentContext = { type: null, key: null };
         }
 
         modalClose.addEventListener('click', closeModal);
@@ -757,35 +1139,32 @@
 
             const email = emailInput.value.trim();
             const mobile = phoneInput.value.trim();
-            if (!email || !mobile || !selectedBiome) return;
+            if (!email || !mobile || !paymentContext.type) return;
 
             if (mobile.length < 10) {
                 showError('Phone number must be at least 10 digits.');
                 return;
             }
 
-            // Show loading state
             payBtn.classList.add('loading');
             payBtn.disabled = true;
             errorMsg.classList.remove('show');
 
             try {
-                const result = await createBiomePayment(selectedBiome, email, mobile);
+                let result;
+                if (paymentContext.type === 'biome') {
+                    result = await createBiomePayment(paymentContext.key, email, mobile);
+                } else {
+                    result = await createGachaPayment(paymentContext.key, paymentContext.name, paymentContext.price, email, mobile);
+                }
 
-                if (result && result.data && result.data.link) {
-                    // Redirect to Mayar payment page
-                    window.location.href = result.data.link;
-                } else if (result && result.data && result.data.paymentUrl) {
-                    window.location.href = result.data.paymentUrl;
-                } else if (result && result.statusCode === 200 && result.data) {
-                    // Try to find payment URL in response
-                    const payUrl = result.data.link || result.data.paymentUrl || result.data.url;
-                    if (payUrl) {
-                        window.location.href = payUrl;
-                    } else {
-                        showError('Payment link received. Check console for details.');
-                        console.log('Mayar full response:', JSON.stringify(result, null, 2));
+                const payUrl = result?.data?.link || result?.data?.paymentUrl || result?.data?.url;
+                if (payUrl) {
+                    // Save pending gacha to localStorage before redirect
+                    if (paymentContext.type === 'gacha') {
+                        localStorage.setItem('terrarium_pending_gacha', paymentContext.key);
                     }
+                    window.location.href = payUrl;
                 } else {
                     const errMessage = result?.message || result?.error || 'Failed to create payment. Please try again.';
                     showError(errMessage);
