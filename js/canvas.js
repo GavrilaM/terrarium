@@ -211,6 +211,50 @@ export class Renderer {
 
         // Generate blob control points
         ctx.beginPath();
+        
+        // ★ MUTATION: Camouflage (transparency)
+        const isCamo = c.mutations?.some(m => m.visual.type === 'camo');
+        if (isCamo) ctx.globalAlpha = 0.4;
+
+        // ★ MUTATION: Tail / Roots / Dash Fin (drawn behind the body)
+        for (const m of c.mutations || []) {
+            if (m.visual.type === 'tail') {
+                const tailLen = finalSize * 1.5;
+                const tailWave = Math.sin(c.glowPhase * 5) * 5;
+                ctx.moveTo(-bodyW, 0);
+                ctx.quadraticCurveTo(-bodyW - tailLen * 0.5, tailWave, -bodyW - tailLen, 0);
+                ctx.strokeStyle = `hsla(${traits.hue}, ${traits.saturation}%, 60%, 0.8)`;
+                ctx.lineWidth = finalSize * 0.3;
+                ctx.stroke();
+            } else if (m.visual.type === 'roots') {
+                ctx.strokeStyle = `hsla(120, 40%, 40%, 0.8)`;
+                ctx.lineWidth = 2;
+                for(let i=0; i<3; i++) {
+                    const angle = (i/3)*Math.PI*2 + c.glowPhase;
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(Math.cos(angle)*finalSize*1.5, Math.sin(angle)*finalSize*1.5);
+                }
+                ctx.stroke();
+            } else if (m.visual.type === 'fin') {
+                ctx.fillStyle = `hsla(${traits.hue}, 80%, 40%, 0.9)`;
+                ctx.beginPath();
+                ctx.moveTo(-bodyW*0.2, -bodyH*0.8);
+                ctx.lineTo(-bodyW*0.8, -bodyH*1.5);
+                ctx.lineTo(bodyW*0.1, -bodyH*0.5);
+                ctx.fill();
+            } else if (m.visual.type === 'aura') {
+                ctx.beginPath();
+                ctx.arc(0, 0, finalSize * 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 50, 50, 0.1)`;
+                ctx.fill();
+            } else if (m.visual.type === 'heal_aura') {
+                ctx.beginPath();
+                ctx.arc(0, 0, finalSize * 2, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(50, 255, 150, 0.1)`;
+                ctx.fill();
+            }
+        }
+        ctx.beginPath();
         for (let i = 0; i <= blobPoints; i++) {
             const t = (i / blobPoints) * Math.PI * 2;
             const wobble = Math.sin(c.glowPhase * 2 + i * 1.5) * 0.12;
@@ -249,6 +293,33 @@ export class Renderer {
         ctx.lineWidth = 0.8;
         ctx.stroke();
 
+        // ★ MUTATION: Shell / Thick Border / Armor Head / Glow Gut
+        for (const m of c.mutations || []) {
+            if (m.visual.type === 'shell') {
+                ctx.fillStyle = `hsla(${traits.hue}, 30%, 30%, 0.9)`;
+                ctx.beginPath();
+                ctx.ellipse(-bodyW*0.1, 0, bodyW*0.8, bodyH*0.9, 0, 0, Math.PI*2);
+                ctx.fill();
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = '#000';
+                ctx.stroke();
+            } else if (m.visual.type === 'thick_border') {
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = `hsla(${traits.hue}, 90%, 80%, 0.8)`;
+                ctx.stroke();
+            } else if (m.visual.type === 'armor_head') {
+                ctx.fillStyle = `hsla(0, 0%, 50%, 0.9)`;
+                ctx.beginPath();
+                ctx.arc(bodyW*0.6, 0, finalSize*0.6, -Math.PI/2, Math.PI/2);
+                ctx.fill();
+            } else if (m.visual.type === 'glow_gut') {
+                ctx.beginPath();
+                ctx.arc(0, 0, finalSize*0.4, 0, Math.PI*2);
+                ctx.fillStyle = `rgba(255, 255, 100, 0.5)`;
+                ctx.fill();
+            }
+        }
+
         // --- Inner organelles (nucleus + spots) ---
         // Nucleus
         const nucX = -bodyW * 0.1;
@@ -275,7 +346,8 @@ export class Renderer {
 
         // --- Eye(s) ---
         const eyeX = bodyW * 0.5;
-        const eyeSize = Math.max(1.5, finalSize * 0.14);
+        const hasBigEyes = c.mutations?.some(m => m.visual.type === 'big_eyes');
+        const eyeSize = Math.max(1.5, finalSize * (hasBigEyes ? 0.22 : 0.14));
 
         // Primary eye
         ctx.beginPath();
@@ -287,7 +359,7 @@ export class Renderer {
         ctx.fillStyle = '#111';
         ctx.fill();
 
-        // Predator: second eye
+        // Predator: second eye / Fangs
         if (traits.diet > 0.5) {
             ctx.beginPath();
             ctx.arc(eyeX, bodyH * 0.15, eyeSize * 0.9, 0, Math.PI * 2);
@@ -297,6 +369,32 @@ export class Renderer {
             ctx.arc(eyeX + eyeSize * 0.2, bodyH * 0.15, eyeSize * 0.4, 0, Math.PI * 2);
             ctx.fillStyle = '#200';
             ctx.fill();
+        }
+
+        for (const m of c.mutations || []) {
+            if (m.visual.type === 'fangs') {
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.moveTo(bodyW*0.8, bodyH*0.2);
+                ctx.lineTo(bodyW*1.2, bodyH*0.4);
+                ctx.lineTo(bodyW*0.9, bodyH*0.5);
+                ctx.fill();
+            } else if (m.visual.type === 'radar') {
+                ctx.strokeStyle = `rgba(0, 255, 255, ${0.5 - glowPulse*0.2})`;
+                ctx.beginPath();
+                ctx.arc(eyeX, 0, finalSize*(2+glowPulse), -Math.PI/4, Math.PI/4);
+                ctx.stroke();
+            } else if (m.visual.type === 'antenna') {
+                ctx.strokeStyle = '#fa0';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(eyeX, -bodyH*0.5);
+                ctx.lineTo(eyeX + finalSize, -bodyH*1.2);
+                ctx.arc(eyeX + finalSize, -bodyH*1.2, 2, 0, Math.PI*2);
+                ctx.stroke();
+                ctx.fillStyle = '#f00';
+                ctx.fill();
+            }
         }
 
         // Pseudopod / flagellum for movement feel
@@ -313,6 +411,7 @@ export class Renderer {
         }
 
         ctx.restore();
+        ctx.globalAlpha = 1.0; // restore from camo
 
         // --- State indicator ---
         this._drawStateIndicator(ctx, c, pos, finalSize, glowPulse);
