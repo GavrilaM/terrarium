@@ -7,7 +7,7 @@ import { CONFIG } from './config.js';
 import { expressDNA, getDietLabel, crossover, mutate } from './genetics.js';
 import { getSpeciesTypeFromDNA, generateSpeciesDNA, getRandomSpeciesType } from './species.js';
 
-const { CREATURE, COMBAT } = CONFIG;
+const { CREATURE, COMBAT, WORLD, ECOSYSTEM } = CONFIG;
 
 let creatureIdCounter = 0;
 
@@ -170,6 +170,9 @@ export class Creature {
         // Passive eating (walk over food)
         if (this.canEat && !this.isFull) this._passiveEat(ecosystem);
 
+        // ★ Overcrowding stress
+        this._checkOvercrowding(ecosystem);
+
         // Decide behavior
         this._decide(ecosystem);
 
@@ -184,15 +187,29 @@ export class Creature {
         this.energy -= speed * CREATURE.ENERGY_MOVE_COST * dt;
         this.energy = Math.max(0, this.energy);
 
-        // Wrap edges
-        if (this.pos.x < 0) this.pos.x = canvasW;
-        if (this.pos.x > canvasW) this.pos.x = 0;
-        if (this.pos.y < 0) this.pos.y = canvasH;
-        if (this.pos.y > canvasH) this.pos.y = 0;
+        // ★ BOUNDARY BOUNCE — no more teleporting!
+        const margin = WORLD.EDGE_MARGIN;
+        const force = WORLD.EDGE_FORCE;
+        if (this.pos.x < margin) { this.pos.x = margin; this.vel.x = Math.abs(this.vel.x) * force; }
+        if (this.pos.x > WORLD.WIDTH - margin) { this.pos.x = WORLD.WIDTH - margin; this.vel.x = -Math.abs(this.vel.x) * force; }
+        if (this.pos.y < margin) { this.pos.y = margin; this.vel.y = Math.abs(this.vel.y) * force; }
+        if (this.pos.y > WORLD.HEIGHT - margin) { this.pos.y = WORLD.HEIGHT - margin; this.vel.y = -Math.abs(this.vel.y) * force; }
 
         // Trail
         this.trail.push({ x: this.pos.x, y: this.pos.y });
         if (this.trail.length > CONFIG.VISUALS.TRAIL_LENGTH) this.trail.shift();
+    }
+
+    /**
+     * Overcrowding stress — too many creatures nearby = energy + HP drain
+     */
+    _checkOvercrowding(ecosystem) {
+        const nearby = ecosystem.getCreaturesNear(this.pos, ECOSYSTEM.OVERCROWD_RADIUS, this.id);
+        if (nearby.length > ECOSYSTEM.OVERCROWD_THRESHOLD) {
+            const excess = nearby.length - ECOSYSTEM.OVERCROWD_THRESHOLD;
+            this.energy = Math.max(0, this.energy - ECOSYSTEM.OVERCROWD_ENERGY_DRAIN * excess);
+            this.hp -= ECOSYSTEM.OVERCROWD_HP_DRAIN * excess;
+        }
     }
 
     // ---- EATING ----
@@ -537,14 +554,24 @@ export class Creature {
 
     _wander(strength) {
         const s = strength || this.behavior.wanderStrength || CREATURE.WANDER_STRENGTH;
-        this.wanderAngle += (Math.random() - 0.5) * 0.5;
-        this.acc = vec2Add(this.acc, { x: Math.cos(this.wanderAngle) * s, y: Math.sin(this.wanderAngle) * s });
+        // ★ Stuck detection — if barely moving, change direction more aggressively
+        const spd = Math.sqrt(this.vel.x * this.vel.x + this.vel.y * this.vel.y);
+        if (spd < CREATURE.STUCK_SPEED_THRESHOLD) {
+            this.wanderAngle += (Math.random() - 0.5) * 2.0; // big direction change
+            const boost = CREATURE.STUCK_WANDER_BOOST;
+            this.acc = vec2Add(this.acc, { x: Math.cos(this.wanderAngle) * boost, y: Math.sin(this.wanderAngle) * boost });
+        } else {
+            this.wanderAngle += (Math.random() - 0.5) * 0.5;
+            this.acc = vec2Add(this.acc, { x: Math.cos(this.wanderAngle) * s, y: Math.sin(this.wanderAngle) * s });
+        }
     }
 
     // ---- Reproduction ----
 
     reproduce(mate) {
-        if (this.energy < CREATURE.REPRODUCTION_COST || mate.energy < CREATURE.REPRODUCTION_COST * 0.8) return null;
+        // ★ Dynamic reproduction cost based on population
+        const popCost = ECOSYSTEM.REPRO_BASE_COST + (this._getPopEstimate ? 0 : 0);
+        if (this.energy < CREATURE.REPRODUCTION_THRESHOLD || mate.energy < CREATURE.REPRODUCTION_THRESHOLD * 0.8) return null;
 
         this.energy -= CREATURE.REPRODUCTION_COST;
         mate.energy -= CREATURE.REPRODUCTION_COST * 0.8;

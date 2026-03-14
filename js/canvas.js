@@ -25,17 +25,54 @@ export class Renderer {
     }
 
     /**
-     * Clear and draw background
+     * Clear and draw background (screen space — before camera transform)
      */
     clear() {
         const ctx = this.ctx;
-
-        // Dark gradient background
         const grad = ctx.createLinearGradient(0, 0, 0, this.height);
         grad.addColorStop(0, CONFIG.CANVAS.BG_GRADIENT_TOP);
         grad.addColorStop(1, CONFIG.CANVAS.BG_GRADIENT_BOTTOM);
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, this.width, this.height);
+    }
+
+    /**
+     * Draw world boundary (world space — inside camera transform)
+     * Shows the terrarium glass edge
+     */
+    drawWorldBorder() {
+        const ctx = this.ctx;
+        const w = CONFIG.WORLD.WIDTH;
+        const h = CONFIG.WORLD.HEIGHT;
+
+        // Terrarium floor
+        ctx.fillStyle = 'rgba(4, 16, 36, 0.3)';
+        ctx.fillRect(0, 0, w, h);
+
+        // Glowing border
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.15)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(8, 8, w - 16, h - 16);
+
+        // Outer dim border
+        ctx.strokeStyle = 'rgba(80, 160, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(2, 2, w - 4, h - 4);
+
+        // Corner glow marks
+        const cornerSize = 30;
+        const corners = [
+            [0, 0], [w, 0], [0, h], [w, h]
+        ];
+        for (const [cx, cy] of corners) {
+            const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cornerSize);
+            grad.addColorStop(0, 'rgba(0, 229, 255, 0.1)');
+            grad.addColorStop(1, 'rgba(0, 229, 255, 0)');
+            ctx.beginPath();
+            ctx.arc(cx, cy, cornerSize, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+        }
     }
 
     /**

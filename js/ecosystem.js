@@ -8,7 +8,7 @@ import { Creature, createCreature } from './creature.js';
 import { geneticDistance } from './genetics.js';
 import { getCurrentEra, getRandomSpeciesType, SPECIES_TYPES } from './species.js';
 
-const { ECOSYSTEM, EVENTS, MEAT } = CONFIG;
+const { ECOSYSTEM, EVENTS, MEAT, WORLD } = CONFIG;
 
 /**
  * Food particle (plant or meat)
@@ -47,8 +47,8 @@ class HazardZone {
 
 export class Ecosystem {
     constructor(canvasW, canvasH) {
-        this.width = canvasW;
-        this.height = canvasH;
+        this.width = WORLD.WIDTH;
+        this.height = WORLD.HEIGHT;
         this.creatures = [];
         this.food = [];
         this.hazards = [];
@@ -318,7 +318,12 @@ export class Ecosystem {
     // ========================================
 
     addCreature(creature) {
-        if (this.creatures.length < ECOSYSTEM.MAX_CREATURES) {
+        // ★ Carrying capacity check — block reproduction when overcrowded
+        const foodCount = this.food.filter(f => !f.isMeat).length;
+        const carryingCap = Math.max(10, foodCount * ECOSYSTEM.CARRY_CAPACITY_RATIO);
+        const atCapacity = this.creatures.length >= Math.min(ECOSYSTEM.MAX_CREATURES, carryingCap);
+
+        if (!atCapacity) {
             this.creatures.push(creature);
             this.stats.totalBorn++;
             if (creature.generation > 0 && Math.random() < 0.2) {
@@ -327,6 +332,13 @@ export class Ecosystem {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Get dynamic reproduction cost based on population
+     */
+    getReproCost() {
+        return ECOSYSTEM.REPRO_BASE_COST + this.creatures.length * ECOSYSTEM.REPRO_POP_SCALE;
     }
 
     removeFood(food) { food.alive = false; }
