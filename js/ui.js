@@ -38,10 +38,14 @@ export class UIManager {
             creatureMutations: document.getElementById('creature-mutations'),
             creatureDnaVis: document.getElementById('creature-dna-vis'),
             toastContainer: document.getElementById('toast-container'),
+            gradModal: document.getElementById('graduation-modal'),
+            gradSpeciesName: document.getElementById('grad-species-name'),
+            btnContinueSandbox: document.getElementById('btn-continue-sandbox'),
         };
 
         this._lastEventCount = 0;
         this._lastEraId = null;
+        this._graduationShown = false;
         this._setupListeners();
     }
 
@@ -50,6 +54,16 @@ export class UIManager {
         this.els.speedSlider?.addEventListener('input', (e) => {
             this.els.speedValue.textContent = parseFloat(e.target.value) + 'x';
         });
+
+        this.els.btnContinueSandbox?.addEventListener('click', () => {
+            if (this.els.gradModal) this.els.gradModal.classList.add('hidden');
+        });
+    }
+
+    _showGraduationModal(species) {
+        if (!this.els.gradModal || !this.els.gradSpeciesName) return;
+        this.els.gradSpeciesName.textContent = `${species.emoji} ${species.name}`;
+        this.els.gradModal.classList.remove('hidden');
     }
 
     update(fps) {
@@ -79,6 +93,12 @@ export class UIManager {
             } else {
                 this.els.activeEventBanner.style.display = 'none';
             }
+        }
+
+        // Graduation Trigger
+        if (stats.graduatedSpecies && !this._graduationShown) {
+            this._showGraduationModal(stats.graduatedSpecies);
+            this._graduationShown = true;
         }
 
         this._updateSpeciesList(stats.speciesList);

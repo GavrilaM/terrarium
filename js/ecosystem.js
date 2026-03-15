@@ -379,8 +379,14 @@ export class Ecosystem {
         const map = {};
         for (const c of this.creatures) {
             const k = c.speciesType.id;
-            if (!map[k]) map[k] = { name: c.speciesType.name, emoji: c.speciesType.emoji, count: 0, hue: c.traits.hue, saturation: c.traits.saturation, avgGen: 0, diet: c.speciesType.diet };
+            if (!map[k]) map[k] = { name: c.speciesType.name, emoji: c.speciesType.emoji, count: 0, hue: c.traits.hue, saturation: c.traits.saturation, avgGen: 0, diet: c.speciesType.diet, tier3Count: 0 };
             map[k].count++; map[k].avgGen += c.generation;
+            if (c.evolutionTier >= 3) map[k].tier3Count++;
+            
+            // Local graduation trigger inside tick
+            if (c.evolutionTier >= 3 && map[k].count >= 5 && !this.graduatedSpecies) {
+                this.graduatedSpecies = map[k];
+            }
         }
         this.stats.speciesList = Object.values(map).map(s => ({ ...s, avgGen: Math.round(s.avgGen / s.count) })).sort((a, b) => b.count - a.count);
     }
@@ -413,6 +419,7 @@ export class Ecosystem {
             currentEra: this.currentEra,
             activeEvent: this.activeEvent,
             hazards: this.hazards,
+            graduatedSpecies: this.graduatedSpecies,
         };
     }
 }
