@@ -63,8 +63,8 @@ class Terrarium {
             const wasPanning = this.camera.isPanning;
             this.camera.endPan();
 
-            // If we didn't pan (just clicked), handle click
-            if (!this._panMoved || !wasPanning) {
+            // If we didn't pan far (just clicked), handle click
+            if (!this._panMoved) {
                 const worldPos = this.camera.screenToWorld(e.clientX, e.clientY);
                 this._handleCanvasClick(worldPos.x, worldPos.y, e.clientX, e.clientY);
             }
@@ -109,9 +109,8 @@ class Terrarium {
 
         this.canvas.addEventListener('touchend', (e) => {
             if (e.touches.length === 0) {
-                const wasPanning = this.camera.isPanning;
                 this.camera.endPan();
-                if (!this._panMoved && !wasPanning && e.changedTouches.length > 0) {
+                if (!this._panMoved && e.changedTouches.length > 0) {
                     const t = e.changedTouches[0];
                     const worldPos = this.camera.screenToWorld(t.clientX, t.clientY);
                     this._handleCanvasClick(worldPos.x, worldPos.y, t.clientX, t.clientY);

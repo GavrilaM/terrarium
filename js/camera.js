@@ -44,32 +44,47 @@ export class Camera {
      * Clamp camera to world boundaries
      */
     _clamp() {
+        // Clamp zoom first
+        this.targetZoom = Math.max(CAMERA.ZOOM_MIN, Math.min(CAMERA.ZOOM_MAX, this.targetZoom));
+
         const halfViewW = (this.viewW / this.zoom) / 2;
         const halfViewH = (this.viewH / this.zoom) / 2;
 
-        this.targetX = Math.max(halfViewW, Math.min(WORLD.WIDTH - halfViewW, this.targetX));
-        this.targetY = Math.max(halfViewH, Math.min(WORLD.HEIGHT - halfViewH, this.targetY));
-        this.x = Math.max(halfViewW, Math.min(WORLD.WIDTH - halfViewW, this.x));
-        this.y = Math.max(halfViewH, Math.min(WORLD.HEIGHT - halfViewH, this.y));
+        // If world fits inside view, center it
+        if (halfViewW * 2 >= WORLD.WIDTH) {
+            this.targetX = WORLD.WIDTH / 2;
+            this.x = WORLD.WIDTH / 2;
+        } else {
+            this.targetX = Math.max(halfViewW, Math.min(WORLD.WIDTH - halfViewW, this.targetX));
+            this.x = Math.max(halfViewW, Math.min(WORLD.WIDTH - halfViewW, this.x));
+        }
+        if (halfViewH * 2 >= WORLD.HEIGHT) {
+            this.targetY = WORLD.HEIGHT / 2;
+            this.y = WORLD.HEIGHT / 2;
+        } else {
+            this.targetY = Math.max(halfViewH, Math.min(WORLD.HEIGHT - halfViewH, this.targetY));
+            this.y = Math.max(halfViewH, Math.min(WORLD.HEIGHT - halfViewH, this.y));
+        }
     }
 
     /**
-     * Zoom towards a screen point
+     * Zoom towards a screen point (mouse position)
      */
     zoomAt(screenX, screenY, delta) {
         const oldZoom = this.targetZoom;
-        this.targetZoom = Math.max(CAMERA.ZOOM_MIN, Math.min(CAMERA.ZOOM_MAX, this.targetZoom + delta * CAMERA.ZOOM_SPEED));
+        const newZoom = Math.max(CAMERA.ZOOM_MIN, Math.min(CAMERA.ZOOM_MAX, this.targetZoom + delta * CAMERA.ZOOM_SPEED));
 
-        // Zoom towards mouse position
-        const worldBefore = this.screenToWorld(screenX, screenY);
-        // After zoom change, recalculate
-        const zoomRatio = this.targetZoom / oldZoom;
-        this.targetX = screenX / this.targetZoom + this.targetX - this.viewW / (2 * this.targetZoom);
-        this.targetY = screenY / this.targetZoom + this.targetY - this.viewH / (2 * this.targetZoom);
+        if (newZoom === oldZoom) return;
 
-        // Simpler: just zoom, keep center
-        this.targetX = this.x;
-        this.targetY = this.y;
+        // Get world point under mouse BEFORE zoom
+        const worldBeforeX = (screenX / oldZoom) + this.targetX - (this.viewW / (2 * oldZoom));
+        const worldBeforeY = (screenY / oldZoom) + this.targetY - (this.viewH / (2 * oldZoom));
+
+        this.targetZoom = newZoom;
+
+        // After zoom, adjust camera so the same world point stays under mouse
+        this.targetX = worldBeforeX - (screenX / newZoom) + (this.viewW / (2 * newZoom));
+        this.targetY = worldBeforeY - (screenY / newZoom) + (this.viewH / (2 * newZoom));
     }
 
     /**
@@ -131,16 +146,16 @@ export class Camera {
     }
 
     /**
-     * Get visible world bounds (for culling)
+     * Get visible world bounds (for culling + minimap)
      */
     getVisibleBounds() {
         const halfW = this.viewW / (2 * this.zoom);
         const halfH = this.viewH / (2 * this.zoom);
         return {
-            left: this.x - halfW - 50,
-            right: this.x + halfW + 50,
-            top: this.y - halfH - 50,
-            bottom: this.y + halfH + 50,
+            left: this.x - halfW,
+            right: this.x + halfW,
+            top: this.y - halfH,
+            bottom: this.y + halfH,
         };
     }
 

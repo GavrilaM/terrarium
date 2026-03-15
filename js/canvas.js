@@ -15,11 +15,13 @@ export class Renderer {
 
     resize() {
         const dpr = window.devicePixelRatio || 1;
+        this.dpr = dpr;
         this.canvas.width = window.innerWidth * dpr;
         this.canvas.height = window.innerHeight * dpr;
         this.canvas.style.width = window.innerWidth + 'px';
         this.canvas.style.height = window.innerHeight + 'px';
-        this.ctx.scale(dpr, dpr);
+        // Reset any previous transforms and apply DPR scale
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         this.width = window.innerWidth;
         this.height = window.innerHeight;
     }
@@ -29,6 +31,8 @@ export class Renderer {
      */
     clear() {
         const ctx = this.ctx;
+        // Reset to base DPR transform (important after camera save/restore)
+        ctx.setTransform(this.dpr || 1, 0, 0, this.dpr || 1, 0, 0);
         const grad = ctx.createLinearGradient(0, 0, 0, this.height);
         grad.addColorStop(0, CONFIG.CANVAS.BG_GRADIENT_TOP);
         grad.addColorStop(1, CONFIG.CANVAS.BG_GRADIENT_BOTTOM);
