@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Terrarium — Watch digital life evolve in real-time. An AI-driven ecosystem simulation where creatures eat, hunt, mutate, and evolve before your eyes.">
+    <meta property="og:title" content="Terrarium — Digital Ecosystem Simulator">
+    <meta property="og:description" content="Watch digital life evolve in real-time. Creatures eat, hunt, mutate, and reach sentience.">
+    <meta property="og:type" content="website">
+    <title>Terrarium — Watch Life Evolve</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-dark: #020a18;
+            --bg-surface: rgba(10, 30, 61, 0.6);
+            --border: rgba(80, 160, 255, 0.12);
+            --cyan: #00e5ff;
+            --green: #69f0ae;
+            --purple: #b388ff;
+            --amber: #ffd740;
+            --red: #ff5252;
+            --text: #e4f0ff;
+            --text-dim: rgba(228, 240, 255, 0.6);
+            --font: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text);
+            font-family: var(--font);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* ─── Animated Background ─── */
+        .bg-effects {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .bg-effects::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 600px 400px at 20% 20%, rgba(0, 229, 255, 0.06), transparent),
+                radial-gradient(ellipse 500px 500px at 80% 60%, rgba(105, 240, 174, 0.04), transparent),
+                radial-gradient(ellipse 400px 300px at 50% 80%, rgba(179, 136, 255, 0.05), transparent);
+            animation: bgShift 12s ease-in-out infinite alternate;
+        }
+        @keyframes bgShift {
+            0% { opacity: 0.6; transform: scale(1); }
+            100% { opacity: 1; transform: scale(1.05); }
+        }
+
+        /* Floating particles */
+        .particle {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float linear infinite;
+            opacity: 0;
+        }
+        @keyframes float {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+        }
+
+        /* ─── Nav ─── */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(2, 10, 24, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text);
+        }
+        .nav-brand-icon { font-size: 24px; }
+        .nav-brand h1 {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+        .nav-links a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--cyan); }
+        .btn-play {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 24px;
+            background: linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(105, 240, 174, 0.15));
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            border-radius: 10px;
+            color: var(--cyan);
+            font-family: var(--font);
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-play:hover {
+            background: linear-gradient(135deg, rgba(0, 229, 255, 0.25), rgba(105, 240, 174, 0.25));
+            border-color: var(--cyan);
+            box-shadow: 0 0 24px rgba(0, 229, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* ─── HERO ─── */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 120px 24px 80px;
+            position: relative;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--cyan);
+            margin-bottom: 32px;
+            animation: fadeIn 1s ease 0.2s both;
+        }
+        .hero-badge .pulse {
+            width: 6px; height: 6px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulseDot 2s ease infinite;
+        }
+        @keyframes pulseDot {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.5); }
+        }
+        .hero h2 {
+            font-size: clamp(40px, 7vw, 80px);
+            font-weight: 800;
+            line-height: 1.05;
+            letter-spacing: -2px;
+            margin-bottom: 24px;
+            animation: fadeIn 1s ease 0.4s both;
+        }
+        .hero h2 .gradient {
+            background: linear-gradient(135deg, var(--cyan), var(--green), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero-sub {
+            max-width: 560px;
+            font-size: 18px;
+            color: var(--text-dim);
+            line-height: 1.7;
+            margin-bottom: 48px;
+            animation: fadeIn 1s ease 0.6s both;
+        }
+        .hero-cta {
+            display: flex;
+            gap: 16px;
+            animation: fadeIn 1s ease 0.8s both;
+        }
+        .btn-hero {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 36px;
+            background: linear-gradient(135deg, var(--cyan), var(--green));
+            color: #020a18;
+            border: none;
+            border-radius: 14px;
+            font-family: var(--font);
+            font-size: 16px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(0, 229, 255, 0.3);
+        }
+        .btn-hero:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(0, 229, 255, 0.5);
+        }
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 32px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 15px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover {
+            background: rgba(15, 40, 80, 0.7);
+            border-color: rgba(0, 229, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        /* Scroll indicator */
+        .scroll-hint {
+            position: absolute;
+            bottom: 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-dim);
+            font-size: 11px;
+            animation: bounce 2s ease infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(8px); }
+        }
+        .scroll-hint .arrow { font-size: 18px; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── FEATURES ─── */
+        .features {
+            padding: 100px 24px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .section-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--cyan);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .section-title {
+            font-size: clamp(28px, 4vw, 44px);
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 64px;
+            letter-spacing: -1px;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+        .feature-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            transition: all 0.3s ease;
+        }
+        .feature-card:hover {
+            border-color: rgba(0, 229, 255, 0.25);
+            transform: translateY(-4px);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+        }
+        .feature-icon {
+            font-size: 36px;
+            margin-bottom: 16px;
+            display: block;
+        }
+        .feature-card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .feature-card p {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        /* ─── EVOLUTION ─── */
+        .evolution {
+            padding: 80px 24px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .evo-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            position: relative;
+        }
+        .evo-timeline::before {
+            content: '';
+            position: absolute;
+            left: 28px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(
+                180deg,
+                var(--cyan) 0%,
+                var(--green) 33%,
+                var(--amber) 66%,
+                var(--purple) 100%
+            );
+            opacity: 0.3;
+        }
+        .evo-step {
+            display: flex;
+            gap: 24px;
+            padding: 24px 0;
+            align-items: flex-start;
+        }
+        .evo-dot {
+            width: 56px;
+            height: 56px;
+            min-width: 56px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            position: relative;
+            z-index: 1;
+        }
+        .evo-content h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .evo-content p {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+        .evo-tier {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: var(--mono);
+            margin-left: 8px;
+        }
+        .tier-0 { background: rgba(0, 229, 255, 0.15); color: var(--cyan); }
+        .tier-1 { background: rgba(105, 240, 174, 0.15); color: var(--green); }
+        .tier-2 { background: rgba(255, 215, 64, 0.15); color: var(--amber); }
+        .tier-3 { background: rgba(179, 136, 255, 0.15); color: var(--purple); }
+
+        /* ─── CTA ─── */
+        .cta {
+            padding: 100px 24px;
+            text-align: center;
+        }
+        .cta-card {
+            max-width: 700px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, rgba(0, 229, 255, 0.08), rgba(105, 240, 174, 0.05));
+            border: 1px solid rgba(0, 229, 255, 0.15);
+            border-radius: 24px;
+            padding: 64px 48px;
+        }
+        .cta-card h2 {
+            font-size: clamp(24px, 3.5vw, 36px);
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        .cta-card p {
+            color: var(--text-dim);
+            font-size: 16px;
+            margin-bottom: 32px;
+            max-width: 480px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* ─── FOOTER ─── */
+        footer {
+            padding: 32px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-dim);
+            border-top: 1px solid var(--border);
+        }
+        footer a {
+            color: var(--cyan);
+            text-decoration: none;
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 640px) {
+            nav { padding: 12px 16px; }
+            .nav-links a:not(.btn-play) { display: none; }
+            .hero-cta { flex-direction: column; align-items: center; }
+            .features-grid { grid-template-columns: 1fr; }
+            .evo-timeline::before { left: 20px; }
+            .evo-dot { width: 40px; height: 40px; min-width: 40px; font-size: 20px; border-radius: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-effects"></div>
+
+<!-- Nav -->
+<nav>
+    <a href="#" class="nav-brand">
+        <span class="nav-brand-icon">🌿</span>
+        <h1>Terrarium</h1>
+    </a>
+    <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#evolution">Evolution</a>
+        <a href="marketplace.html">Marketplace</a>
+        <a href="index.html" class="btn-play">▶ Play Now</a>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-badge">
+        <span class="pulse"></span>
+        Live Digital Ecosystem
+    </div>
+    <h2>Watch Life <span class="gradient">Evolve</span></h2>
+    <p class="hero-sub">
+        An AI-driven ecosystem simulation where digital creatures eat, hunt, reproduce, mutate, and reach sentience — all in your browser. No controls. Just nature.
+    </p>
+    <div class="hero-cta">
+        <a href="index.html" class="btn-hero">
+            🧬 Enter the Terrarium
+        </a>
+        <a href="#features" class="btn-secondary">
+            Learn More ↓
+        </a>
+    </div>
+    <div class="scroll-hint">
+        <span>Scroll to explore</span>
+        <span class="arrow">↓</span>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="features" id="features">
+    <div class="section-label">Core Systems</div>
+    <h2 class="section-title">A Living World in Your Browser</h2>
+    <div class="features-grid">
+        <div class="feature-card">
+            <span class="feature-icon">🧬</span>
+            <h3>Genetic DNA System</h3>
+            <p>Every creature carries a unique DNA strand that determines its traits — size, speed, color, diet, and behavior. Offspring inherit and mutate genes from both parents.</p>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">⚔️</span>
+            <h3>Size-Based Combat</h3>
+            <p>Predators must weigh their options. Small prey can be devoured instantly. Equal-sized foes must be fought. Larger targets? Better think twice.</p>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">🧪</span>
+            <h3>18 Unique Mutations</h3>
+            <p>Species-specific mutation trees with visual effects: tails, shells, venom glands, camouflage, pack signals, echolocation, and more. Each mutation changes both stats and appearance.</p>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">📊</span>
+            <h3>HP, Energy & Fullness</h3>
+            <p>Three-bar survival system inspired by Spore. Creatures need to balance eating, resting, and fighting. No infinite eating — fullness caps prevent ecosystem collapse.</p>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">🌍</span>
+            <h3>Dynamic Ecosystem</h3>
+            <p>Bloom events spawn food surges. Toxic zones challenge survival. Ocean currents push creatures around. The ecosystem adapts and balances itself naturally.</p>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">🎓</span>
+            <h3>Evolution & Graduation</h3>
+            <p>Creatures evolve through 4 tiers of advancement. The species that reaches Apex sentience can graduate to the next biome — unlocking deeper evolution.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Evolution Timeline -->
+<section class="evolution" id="evolution">
+    <div class="section-label">Evolution Tiers</div>
+    <h2 class="section-title">The Path to Sentience</h2>
+    <div class="evo-timeline">
+        <div class="evo-step">
+            <div class="evo-dot">🦠</div>
+            <div class="evo-content">
+                <h3>Primordial <span class="evo-tier tier-0">TIER 0</span></h3>
+                <p>Basic organisms. Spawn into the world with raw DNA. Wander, eat, and survive the harsh primordial soup.</p>
+            </div>
+        </div>
+        <div class="evo-step">
+            <div class="evo-dot">🧬</div>
+            <div class="evo-content">
+                <h3>Adapted <span class="evo-tier tier-1">TIER 1</span></h3>
+                <p>Survive 500 frames and earn your first mutation slot. Long tails, dash fins, or adaptive guts — the first branching point.</p>
+            </div>
+        </div>
+        <div class="evo-step">
+            <div class="evo-dot">🔬</div>
+            <div class="evo-content">
+                <h3>Evolved <span class="evo-tier tier-2">TIER 2</span></h3>
+                <p>Survive 1500 frames and produce 2+ offspring. Unlock powerful mutations: venom, camouflage, mimicry, pack hunting signals.</p>
+            </div>
+        </div>
+        <div class="evo-step">
+            <div class="evo-dot">⭐</div>
+            <div class="evo-content">
+                <h3>Apex Sentience <span class="evo-tier tier-3">TIER 3</span></h3>
+                <p>The pinnacle. Survive 3000 frames, produce 5+ offspring, and unlock the rarest mutations. When 5+ Apex creatures exist, the species achieves sentience — ready to graduate.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+    <div class="cta-card">
+        <h2>🌿 Ready to Observe Life?</h2>
+        <p>No installation needed. Open your browser and watch evolution happen in real-time.</p>
+        <a href="index.html" class="btn-hero">
+            🧬 Enter the Terrarium
+        </a>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <p>Terrarium © 2026 — Built with 🧬 for the <a href="#">Mayar Vibecoding Competition</a></p>
+</footer>
+
+<!-- Floating Particles -->
+<script>
+    const colors = ['#00e5ff', '#69f0ae', '#b388ff', '#ffd740'];
+    for (let i = 0; i < 30; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        const size = 2 + Math.random() * 4;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const dur = 8 + Math.random() * 15;
+        const delay = Math.random() * dur;
+        p.style.cssText = `
+            width:${size}px; height:${size}px;
+            left:${Math.random() * 100}%;
+            background:${color};
+            box-shadow:0 0 ${size * 3}px ${color};
+            animation-duration:${dur}s;
+            animation-delay:-${delay}s;
+        `;
+        document.querySelector('.bg-effects').appendChild(p);
+    }
+</script>
+
+</body>
+</html>
